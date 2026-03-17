@@ -1,0 +1,510 @@
+import akshare as ak
+import json
+import os
+import logging
+import pandas as pd
+import datetime
+
+import os
+import json as json_lib
+
+# 获取脚本所在目录
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+VOLUME_CACHE_FILE = os.path.join(SCRIPT_DIR, "data/volume_cache.json")
+
+def _load_volume_cache():
+    """加载成交量缓存"""
+    try:
+        if os.path.exists(VOLUME_CACHE_FILE):
+            with open(VOLUME_CACHE_FILE, 'r') as f:
+                return json_lib.load(f)
+    except:
+        pass
+    return {}
+
+def _save_volume_cache(cache_data):
+    """保存成交量缓存"""
+    try:
+        os.makedirs(os.path.dirname(VOLUME_CACHE_FILE), exist_ok=True)
+        with open(VOLUME_CACHE_FILE, 'w') as f:
+            json_lib.dump(cache_data, f, indent=2)
+    except Exception as e:
+        logging.warning(f"保存成交量缓存失败: {e}")
+
+from typing import List, Dict, Any
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Sina 板块名称 → label 映射（由 load_sector_board_df 填充，供成份股查询使用）
+_sina_sector_label_map: Dict[str, str] = {}
+
+def load_sector_board_df() -> pd.DataFrame:
+    """统一准备板块资金口径。
+    优先级：① Sina 实时板块（49行业，成交额元，附 label 供成份股查询）
+             ② THS 板块摘要（有真实成交额，名称与 EM 个股行业字段一致）
+             ③ EM 板块列表（时有维护，作为备选）
+             ④ THS 板块名单（等权占位，最后兜底）
+    """
+    global _sina_sector_label_map
+    _sina_sector_label_map.clear()
+
+    # ① 首选 Sina 实时板块（自带 label，可直接查成份股，最快 0.2s）
+    try:
+        df_sina = ak.stock_sector_spot()
+        if df_sina is not None and not df_sina.empty \
+                and '板块' in df_sina.columns and '总成交额' in df_sina.columns \
+                and 'label' in df_sina.columns:
+            df_sina = df_sina.copy()
+            df_sina['板块名称'] = df_sina['板块'].astype(str).str.strip()
+            # Sina 总成交额单位为"元"，与后续代码一致
+            df_sina['turnover_amount'] = pd.to_numeric(
+                df_sina['总成交额'], errors='coerce').fillna(0)
+            # 缓存 sector_name → label 映射，供成份股查询
+            for _, row in df_sina.iterrows():
+                _sina_sector_label_map[row['板块名称']] = str(row['label']).strip()
+            result = df_sina[['板块名称', 'turnover_amount']].reset_index(drop=True)
+            if not result.empty:
+                logging.info(f"✅ Sina 板块数据加载成功，共 {len(result)} 个板块")
+                return result
+    except Exception as e:
+        logging.warning(f"Sina 板块接口异常: {e}")
+
+    # ② THS 板块摘要接口：实时成交额，90 个板块，接口稳定
+    try:
+        df_sum = ak.stock_board_industry_summary_ths()
+        if df_sum is not None and not df_sum.empty \
+                and '板块' in df_sum.columns and '总成交额' in df_sum.columns:
+            df_sum = df_sum.copy()
+            df_sum['板块名称'] = df_sum['板块'].astype(str).str.strip()
+            # THS 总成交额单位为"亿元"，乘以 1e8 转为元，与其他路径单位一致
+            df_sum['turnover_amount'] = pd.to_numeric(
+                df_sum['总成交额'], errors='coerce').fillna(0) * 1e8
+            result = df_sum[['板块名称', 'turnover_amount']].reset_index(drop=True)
+            if not result.empty:
+                logging.info(f"✅ THS 板块摘要加载成功，共 {len(result)} 个板块")
+                return result
+    except Exception as e:
+        logging.warning(f"THS 板块摘要接口异常: {e}")
+
+    # ② 备选 EM 板块列表（盘中有时恢复）
+    try:
+        df = ak.stock_board_industry_name_em()
+        if df is not None and not df.empty:
+            df = df.copy()
+            name_col = '板块名称' if '板块名称' in df.columns else None
+            if name_col:
+                amount_col = None
+                for col in ('总成交额', '成交额'):
+                    if col in df.columns:
+                        amount_col = col
+                        break
+                if amount_col is not None:
+                    df['turnover_amount'] = pd.to_numeric(df[amount_col], errors='coerce').fillna(0)
+                elif '总市值' in df.columns and '换手率' in df.columns:
+                    market_cap = pd.to_numeric(df['总市值'], errors='coerce').fillna(0)
+                    turnover = pd.to_numeric(df['换手率'], errors='coerce').fillna(0) / 100
+                    df['turnover_amount'] = market_cap * turnover
+                else:
+                    raise ValueError("EM 板块列表缺少成交额及市值换手率字段")
+                result = df[[name_col, 'turnover_amount']].rename(columns={name_col: '板块名称'})
+                if not result.empty:
+                    logging.info("✅ EM 板块列表加载成功（备选路径）")
+                    return result
+    except Exception as e:
+        logging.warning(f"EM 板块列表接口异常: {e}")
+
+    # ③ 最终兜底：THS 板块名单等权占位
+    try:
+        df_ths = ak.stock_board_industry_name_ths()
+        if df_ths is not None and not df_ths.empty:
+            df_ths = df_ths.copy()
+            name_col = 'name' if 'name' in df_ths.columns else df_ths.columns[0]
+            df_ths['板块名称'] = df_ths[name_col].astype(str).str.strip()
+            df_ths['turnover_amount'] = 1.0  # 等权占位
+            logging.warning("⚠️ 所有成交额接口均失败，回落等权模式")
+            return df_ths[['板块名称', 'turnover_amount']].reset_index(drop=True)
+    except Exception as e:
+        logging.error(f"THS 板块名单接口也失败: {e}")
+
+    return pd.DataFrame()
+
+def format_stock_code(code: str) -> str:
+    code = str(code).strip()
+    if len(code) != 6: return code
+    if code.startswith(('60', '68')): return f"sh{code}"
+    elif code.startswith(('00', '30')): return f"sz{code}"
+    elif code.startswith(('4', '8', '9')): return f"bj{code}"
+    return code
+
+def read_my_stocks(filepath: str) -> List[str]:
+    result = []
+    if not os.path.exists(filepath): return result
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            for line in f:
+                code = line.strip()
+                if code and not code.startswith('#'):
+                    if code.lower().startswith(('sh', 'sz', 'bj')): result.append(code.lower())
+                    else: result.append(format_stock_code(code))
+    except Exception as e:
+        logging.error(f"读取持仓失败: {e}")
+    return result
+
+# 🚀 核心重构 1：动态截取霸占大盘 50% 成交额的板块
+def get_top_50pct_volume_sectors() -> List[str]:
+    try:
+        logging.info("正在计算全市场板块资金流动性分布...")
+        df = load_sector_board_df()
+        if df.empty:
+            logging.warning("板块资金数据为空，无法计算前 50% 板块")
+            return []
+
+        # 按成交额从大到小排序
+        df = df.sort_values(by='turnover_amount', ascending=False)
+        
+        # 计算市场总成交额
+        total_market_vol = df['turnover_amount'].sum()
+        if total_market_vol <= 0:
+            logging.warning("市场总成交额为 0，无法计算前 50% 板块")
+            return []
+
+        # 计算每个板块的累计成交额占比 (CumSum)
+        df['cumsum_ratio'] = df['turnover_amount'].cumsum() / total_market_vol
+
+        # 截取累计占比达到 50% 时的最小板块集合（包含跨线的最后一个板块）
+        over_50 = df[df['cumsum_ratio'] >= 0.50]
+        if not over_50.empty:
+            cutoff_index = over_50.index[0]
+            selected_df = df.loc[:cutoff_index]
+        else:
+            selected_df = df.copy()
+
+        if selected_df.empty:
+            selected_df = df.head(1)
+        sectors = selected_df['板块名称'].tolist()
+        
+        logging.info(f"✅ 成功锁定占全市场成交额 50% 的核心板块，共计 {len(sectors)} 个")
+        return sectors
+    except Exception as e:
+        logging.error(f"获取核心板块异常: {e}")
+    return []
+
+# 🚀 核心重构 2：提取板块内前 50% 的吸金个股
+# 返回 (top_50pct_codes, all_codes)
+# - top_50pct_codes: 用于 fast_sniper 候选池（裁剪后）
+# - all_codes: 用于 full_sector_map 归属展示（全量）
+def get_top_50pct_volume_constituents(sector_name: str):
+    """提取板块成份股，先试 Sina 后试 EM/THS。返回 (top_50pct_codes, all_codes)。"""
+    df = None
+
+    # ① 首选 Sina 成份股：使用 stock_sector_detail(sector=label)
+    label = _sina_sector_label_map.get(sector_name)
+    if label:
+        try:
+            df_sina = ak.stock_sector_detail(sector=label)
+            if df_sina is not None and not df_sina.empty and 'code' in df_sina.columns:
+                df_sina = df_sina.copy()
+                df_sina['代码'] = df_sina['code'].astype(str).str.zfill(6)
+                if 'amount' in df_sina.columns:
+                    df_sina['成交额'] = pd.to_numeric(df_sina['amount'], errors='coerce').fillna(0)
+                df = df_sina
+                logging.info(f"  Sina 成份股 [{sector_name}] 共 {len(df)} 只")
+        except Exception as e:
+            logging.warning(f"Sina 成份股接口失败 [{sector_name}]: {e}")
+
+    # ② 再试 EM 成份股接口
+    try:
+        df_em = ak.stock_board_industry_cons_em(symbol=sector_name)
+        if df_em is not None and not df_em.empty and '代码' in df_em.columns:
+            df = df_em
+    except Exception as e:
+        logging.debug(f"EM 成份股接口失败 [{sector_name}]: {e}")
+
+    # ② EM 失败则试 THS 成份股接口
+    if df is None:
+        try:
+            df_ths = ak.stock_board_industry_cons_ths(symbol=sector_name)
+            if df_ths is not None and not df_ths.empty and '代码' in df_ths.columns:
+                df = df_ths
+        except Exception as e:
+            logging.error(f"获取板块 {sector_name} 的成份股异常 (EM+THS 均失败): {e}")
+
+    if df is None or df.empty:
+        return [], []
+
+    df = df.copy()
+    amount_col = '成交额' if '成交额' in df.columns else None
+    if amount_col:
+        df[amount_col] = pd.to_numeric(df[amount_col], errors='coerce').fillna(0)
+        df = df.sort_values(by=amount_col, ascending=False)
+    else:
+        df = df.sort_values(by="涨跌幅", ascending=False) if '涨跌幅' in df.columns else df
+
+    # ① 剔除 ST 股票（支持 Sina 的 name 列 和 EM/THS 的 名称 列）
+    name_col_st = 'name' if 'name' in df.columns else ('名称' if '名称' in df.columns else None)
+    if name_col_st:
+        df = df[~df[name_col_st].astype(str).str.upper().str.contains('ST', na=False)]
+
+    all_codes = [format_stock_code(c) for c in df['代码'].tolist()]
+
+    # ② 候选池额外要求：涨跌幅 > 3%（支持 Sina 的 changepercent 和 EM/THS 的 涨跌幅）
+    pct_col = 'changepercent' if 'changepercent' in df.columns else ('涨跌幅' if '涨跌幅' in df.columns else None)
+    if pct_col:
+        df['_pct'] = pd.to_numeric(df[pct_col], errors='coerce').fillna(0)
+        df_eligible = df[df['_pct'] > 3].copy()
+    else:
+        df_eligible = df.copy()
+
+    # 截取该板块内数量前 50% 的股票（候选池，供 fast_sniper 过滤）
+    target_count = max(1, len(df_eligible) // 2)
+    top_codes = [format_stock_code(c) for c in df_eligible.head(target_count)['代码'].tolist()]
+
+    return top_codes, all_codes
+
+def get_market_sector_ratios():
+    """返回 (sector_ratios 百分比, sector_amounts 万元, total_market_yi 亿元)"""
+    sector_ratios: Dict[str, float] = {}
+    sector_amounts: Dict[str, float] = {}
+    total_market_yi: float = 0.0
+    try:
+        df = load_sector_board_df()
+        if not df.empty:
+            total_market_amount = df['turnover_amount'].sum()
+            total_market_yi = total_market_amount / 1e8
+            if total_market_amount > 0:
+                for _, row in df.iterrows():
+                    sn = str(row['板块名称'])
+                    sector_ratios[sn] = (row['turnover_amount'] / total_market_amount) * 100
+                    sector_amounts[sn] = float(row['turnover_amount']) / 10000  # 元 → 万元
+    except Exception as e:
+        logging.error(f"计算全市场资金占比异常: {e}")
+    return sector_ratios, sector_amounts, total_market_yi
+
+def get_market_summary_stats(sina_total_yi: float = 0.0) -> Dict[str, Any]:
+    """sina_total_yi: 由 get_market_sector_ratios() 计算的 Sina 实时全市场成交额（亿元）。"""
+    stats = {
+        "volume_status": "获取失败或接口维护中",
+        "top_zt_sectors": [],
+        "top_zt_sector_details": {},
+        "top_vol_sectors": []
+    }
+    
+    # 隔水舱 1：精准计算量能（优先使用已从 Sina 板块汇总得到的实时成交额）
+    try:
+        yest_total_yi = 0.0
+        cache = _load_volume_cache()
+        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+        # 判断今天是否是周一（weekday=0）
+        is_monday = datetime.datetime.now().weekday() == 0
+        compare_label = "上周五" if is_monday else "昨全天"
+        
+        # 昨日/上周五全天数据仍走 EM daily（只取昨日基准，避免 "今天数据是昨天的" 问题）
+        try:
+            sh_hist = ak.stock_zh_index_daily_em(symbol="sh000001")
+            sz_hist = ak.stock_zh_index_daily_em(symbol="sz399001")
+            if sh_hist is not None and not sh_hist.empty and sz_hist is not None and not sz_hist.empty:
+                yest_total_yi = (sh_hist.iloc[-1]['amount'] + sz_hist.iloc[-1]['amount']) / 100000000
+                # 成功获取后更新缓存
+                cache['yesterday_total_yi'] = yest_total_yi
+                cache['yesterday_date'] = today_str
+                _save_volume_cache(cache)
+        except Exception as e:
+            logging.warning(f"EM接口获取昨日数据失败，尝试使用缓存: {e}")
+            # 回退：使用缓存的昨日数据
+            if 'yesterday_total_yi' in cache:
+                cached_date = cache.get('yesterday_date', '')
+                # 缓存日期不是今天才使用
+                if cached_date and cached_date != today_str:
+                    yest_total_yi = cache['yesterday_total_yi']
+                    logging.info(f"使用缓存的昨日成交额: {yest_total_yi:.0f}亿")
+
+        if sina_total_yi > 0:
+            # ✅ 使用 Sina 板块实时汇总作为今日成交：比 EM daily 更及时
+            today_total_yi = sina_total_yi
+            # 更新缓存的今日实时数据，供明日使用
+            cache['realtime_total_yi'] = today_total_yi
+            cache['realtime_date'] = today_str
+            _save_volume_cache(cache)
+        elif yest_total_yi > 0:
+            # 降级：直接复用 EM daily 最新行
+            today_total_yi = yest_total_yi
+            yest_total_yi = 0.0  # 无从比较，清空昨日基准
+        else:
+            # 最后回退：使用缓存的今日实时数据（如果有的话）
+            if 'realtime_total_yi' in cache and cache.get('realtime_date') != today_str:
+                today_total_yi = cache['realtime_total_yi']
+                logging.info(f"使用缓存的实时成交额: {today_total_yi:.0f}亿")
+            else:
+                raise ValueError("所有量能数据源均无可用数据")
+
+        diff = today_total_yi - yest_total_yi if yest_total_yi > 0 else 0
+        status = "🔥 资金放量" if diff > 0 else ("📉 资金缩量" if diff < 0 else "📊")
+        if yest_total_yi > 0:
+            # 周一时显示"上周五"，其他工作日显示"昨全天"
+            stats["volume_status"] = f"{status} (最新成交 {today_total_yi:.0f}亿 / {compare_label} {yest_total_yi:.0f}亿)"
+        else:
+            stats["volume_status"] = f"📊 实时成交 {today_total_yi:.0f}亿"
+    except Exception as e:
+        logging.error(f"市场量能计算异常: {e}")
+
+    # 隔水舱 2：获取涨停阵地
+    try:
+        today_str = datetime.datetime.now().strftime("%Y%m%d")
+        df_zt = ak.stock_zt_pool_em(date=today_str)
+        if not df_zt.empty and '所属行业' in df_zt.columns:
+            zt_counts = df_zt['所属行业'].value_counts().head(5)
+            stats["top_zt_sectors"] = [[str(k), int(v)] for k, v in zt_counts.items()]
+
+            # 记录每个情绪主线板块下的涨停股票明细，供前端展开查看
+            if '代码' in df_zt.columns and '名称' in df_zt.columns:
+                for sector, _ in stats["top_zt_sectors"]:
+                    sector_df = df_zt[df_zt['所属行业'] == sector]
+                    details = []
+                    for _, row in sector_df.iterrows():
+                        code = str(row.get('代码', '')).zfill(6)
+                        name = str(row.get('名称', ''))
+                        if code and name:
+                            details.append({"code": code, "name": name})
+                    # 防止消息体过大，限制每个板块最多展示前 30 只
+                    stats["top_zt_sector_details"][sector] = details[:30]
+    except Exception:
+        logging.warning("当前无涨停数据 (可能未开盘或接口休眠)")
+
+    # 隔水舱 3：获取吸金阵地
+    try:
+        df_sectors = load_sector_board_df()
+        if not df_sectors.empty:
+            # THS 等权兜底时 turnover_amount 全为 1.0，无意义，跳过
+            unique_amounts = df_sectors['turnover_amount'].nunique()
+            is_ths_equal_weight = (unique_amounts == 1 and df_sectors['turnover_amount'].iloc[0] == 1.0)
+            if not is_ths_equal_weight:
+                df_top_vol = df_sectors.sort_values(by='turnover_amount', ascending=False).head(5)
+                stats["top_vol_sectors"] = [
+                    [str(row['板块名称']), float(row['turnover_amount'])/100000000]
+                    for _, row in df_top_vol.iterrows()
+                ]
+    except Exception as e:
+        logging.error(f"吸金板块排名计算异常: {e}")
+
+    return stats
+
+def _em_constituent_probe() -> bool:
+    """
+    快速探测 EM 成份股接口是否可用（默认最多等待 2 秒）。
+    用于盘后维护期间避免 N 个板块 × 5 秒超时的累计等待。
+    """
+    import threading
+    result = [False]
+    def _try():
+        try:
+            df = ak.stock_board_industry_cons_em(symbol="半导体")
+            if df is not None and not df.empty:
+                result[0] = True
+        except Exception:
+            pass
+    t = threading.Thread(target=_try, daemon=True)
+    t.start()
+    t.join(timeout=2.0)
+    return result[0]
+
+def main():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, "data")
+    my_stocks_path = os.path.join(data_dir, "my_stocks.txt")
+    output_json_path = os.path.join(data_dir, "sector_radar.json")
+    os.makedirs(data_dir, exist_ok=True)
+    
+    radar_data: Dict[str, Any] = {
+        "strong_sectors": [], "candidate_stocks": [], "my_stocks": [],
+        "candidate_sector_map": {}, "full_sector_map": {},
+        "sector_ratios": {}, "sector_amounts": {}, "market_summary": {}
+    }
+    
+    # 宏观视角拉取（一次性获取板块占比、个别板块成交额及全市场汇总）
+    sector_ratios, sector_amounts, sina_total_yi = get_market_sector_ratios()
+    radar_data["sector_ratios"] = sector_ratios
+    radar_data["sector_amounts"] = sector_amounts
+    radar_data["market_summary"] = get_market_summary_stats(sina_total_yi=sina_total_yi)
+    
+    # 🔥 触发前 50% 核心流动性板块拦截
+    core_50pct_sectors = get_top_50pct_volume_sectors()
+    radar_data["strong_sectors"] = core_50pct_sectors
+    
+    all_candidates_set = set()
+    
+    # 深入这些板块内部，抽取前 50% 核心个股（候选池），同时建立完整归属映射
+    if core_50pct_sectors:
+        if _sina_sector_label_map:
+            # ★ Sina 模式：直接用 label 查成份股，无需 EM 探针
+            logging.info(f"Sina 模式启动，准备拉取 {len(core_50pct_sectors)} 个板块成份股...")
+            for sector in core_50pct_sectors:
+                logging.info(f"正在抽取板块 [{sector}] 的前 50% 核心成份股...")
+                top_codes, all_codes = get_top_50pct_volume_constituents(sector)
+                all_candidates_set.update(top_codes)
+                for code in top_codes:
+                    radar_data["candidate_sector_map"].setdefault(code, sector)
+                for code in all_codes:
+                    radar_data["full_sector_map"].setdefault(code, sector)
+            # Sina 模式下也用涨停板数据补充映射（涨停股可能不在 Sina 49 板块内）
+            zt_details = radar_data["market_summary"].get("top_zt_sector_details", {})
+            for zt_sector, stock_list in zt_details.items():
+                for s in stock_list:
+                    code = str(s.get('code', '')).zfill(6)
+                    if not code:
+                        continue
+                    fmt_code = format_stock_code(code)
+                    radar_data["full_sector_map"].setdefault(fmt_code, zt_sector)
+        else:
+            # 非 Sina 模式：先用探针检测 EM 成份股接口是否可用
+            em_cons_alive = _em_constituent_probe()
+            if not em_cons_alive:
+                logging.warning("⚠️ Sina + EM 成份股接口均不通，用涨停板数据补充 full_sector_map。")
+                zt_details = radar_data["market_summary"].get("top_zt_sector_details", {})
+                for zt_sector, stock_list in zt_details.items():
+                    for s in stock_list:
+                        code = str(s.get('code', '')).zfill(6)
+                        if not code:
+                            continue
+                        fmt_code = format_stock_code(code)
+                        radar_data["full_sector_map"].setdefault(fmt_code, zt_sector)
+                if radar_data["full_sector_map"]:
+                    logging.info(f"已从涨停板数据补充 {len(radar_data['full_sector_map'])} 只股票的板块归属")
+            else:
+                for sector in core_50pct_sectors:
+                    logging.info(f"正在抽取板块 [{sector}] 的前 50% 核心成份股...")
+                    top_codes, all_codes = get_top_50pct_volume_constituents(sector)
+                    all_candidates_set.update(top_codes)
+                    for code in top_codes:
+                        radar_data["candidate_sector_map"].setdefault(code, sector)
+                    for code in all_codes:
+                        radar_data["full_sector_map"].setdefault(code, sector)
+
+    radar_data["candidate_stocks"] = sorted(list(all_candidates_set))
+    radar_data["my_stocks"] = read_my_stocks(my_stocks_path)
+
+    # ⚠️ 失败保护：如果本次因网络波动未能获取任何核心板块，
+    # 保留上一次的成功数据，仅更新市场摘要部分，避免清空历史映射。
+    if not core_50pct_sectors and os.path.exists(output_json_path):
+        try:
+            with open(output_json_path, 'r', encoding='utf-8') as f:
+                old_data = json.load(f)
+            old_data["market_summary"] = radar_data["market_summary"]
+            old_data["my_stocks"] = radar_data["my_stocks"]
+            with open(output_json_path, 'w', encoding='utf-8') as f:
+                json.dump(old_data, f, ensure_ascii=False, indent=4)
+            logging.warning("⚠️ 核心板块获取失败，已保留上次数据并仅更新市场摘要。")
+        except Exception as e:
+            logging.error(f"保留旧数据失败: {e}")
+        return
+
+    try:
+        with open(output_json_path, 'w', encoding='utf-8') as f:
+            json.dump(radar_data, f, ensure_ascii=False, indent=4)
+        logging.info(f"✅ 雷达扫描完毕！捕捉核心池股票 {len(all_candidates_set)} 只，已写入: {output_json_path}")
+    except Exception as e:
+        logging.error(f"写入失败: {e}")
+
+if __name__ == "__main__":
+    main()

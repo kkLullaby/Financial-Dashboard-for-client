@@ -1,0 +1,253 @@
+{
+  "timestamp": 1773644399.1457,
+  "macro_indicators": {
+    "USD/CNH": "6.9019 (↓ -0.04%)",
+    "Global_GC": "5017.536 (↓ -0.87%)",
+    "Global_CL": "97.164 (↑ +0.33%)",
+    "CN_Bond_T0": "108.085 (↓ -0.09%)",
+    "CN_Bond_TL0": "110.570 (↓ -0.16%)"
+  },
+  "news_catalyst": "",
+  "valid_targets": [
+    {
+      "stock_code": "sz002025",
+      "price": 57.56,
+      "pct_chg": 4.84517304189436,
+      "vol": 379863,
+      "buy_vol_ratio": 57.88534287361497,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300085",
+      "price": 41.18,
+      "pct_chg": 4.544300583904541,
+      "vol": 363319,
+      "buy_vol_ratio": 58.464049499200435,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300042",
+      "price": 45.6,
+      "pct_chg": 20.000000000000004,
+      "vol": 360457,
+      "buy_vol_ratio": 52.472278246781165,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002636",
+      "price": 31.96,
+      "pct_chg": 10.017211703958692,
+      "vol": 497511,
+      "buy_vol_ratio": 50.204317090476394,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300209",
+      "price": 11.14,
+      "pct_chg": 20.043103448275875,
+      "vol": 1320442,
+      "buy_vol_ratio": 61.60331161838233,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300223",
+      "price": 129.95,
+      "pct_chg": 9.064204783885843,
+      "vol": 471073,
+      "buy_vol_ratio": 60.300208247978546,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300285",
+      "price": 37.57,
+      "pct_chg": -1.0795155344918288,
+      "vol": 429855,
+      "buy_vol_ratio": 45.93130241593095,
+      "is_holding": true
+    },
+    {
+      "stock_code": "sz000021",
+      "price": 33.1,
+      "pct_chg": 7.050452781371279,
+      "vol": 1570865,
+      "buy_vol_ratio": 58.66799502185101,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sh600602",
+      "price": 21.31,
+      "pct_chg": 3.698296836982959,
+      "vol": 796432,
+      "buy_vol_ratio": 52.3251200353577,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002654",
+      "price": 16.09,
+      "pct_chg": 4.209844559585495,
+      "vol": 651095,
+      "buy_vol_ratio": 57.228361452629805,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300432",
+      "price": 18.68,
+      "pct_chg": 5.835694050991509,
+      "vol": 872442,
+      "buy_vol_ratio": 60.07069810944452,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002151",
+      "price": 47.99,
+      "pct_chg": 5.010940919037197,
+      "vol": 715865,
+      "buy_vol_ratio": 54.9820147653538,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300166",
+      "price": 12.6,
+      "pct_chg": 4.132231404958678,
+      "vol": 739794,
+      "buy_vol_ratio": 56.17807119279151,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002426",
+      "price": 4.47,
+      "pct_chg": 10.098522167487689,
+      "vol": 5020071,
+      "buy_vol_ratio": 58.09172818472089,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz000962",
+      "price": 50.94,
+      "pct_chg": 4.578115376719353,
+      "vol": 253448,
+      "buy_vol_ratio": 52.85975821470282,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002119",
+      "price": 22.47,
+      "pct_chg": 5.393996247654777,
+      "vol": 397684,
+      "buy_vol_ratio": 59.4218022349403,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz003031",
+      "price": 85.97,
+      "pct_chg": 2.5894988066825797,
+      "vol": 119179,
+      "buy_vol_ratio": 51.457891071413584,
+      "is_holding": true
+    },
+    {
+      "stock_code": "sz300342",
+      "price": 41.86,
+      "pct_chg": 3.43464294539165,
+      "vol": 327142,
+      "buy_vol_ratio": 55.98333445415141,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300243",
+      "price": 17.46,
+      "pct_chg": 14.86842105263159,
+      "vol": 712815,
+      "buy_vol_ratio": 58.99609295539516,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002130",
+      "price": 26.64,
+      "pct_chg": 4.143862392494145,
+      "vol": 740601,
+      "buy_vol_ratio": 57.261872452238116,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300302",
+      "price": 21.04,
+      "pct_chg": 7.786885245901637,
+      "vol": 419788,
+      "buy_vol_ratio": 62.807893508151736,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002594",
+      "price": 104.61,
+      "pct_chg": 4.956355974716562,
+      "vol": 1080159,
+      "buy_vol_ratio": 57.31017377997129,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sh600667",
+      "price": 11.26,
+      "pct_chg": 9.960937499999996,
+      "vol": 2208066,
+      "buy_vol_ratio": 56.83616341178207,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300236",
+      "price": 87.29,
+      "pct_chg": 4.614093959731554,
+      "vol": 180380,
+      "buy_vol_ratio": 56.83834127952101,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002384",
+      "price": 119.5,
+      "pct_chg": 7.72559271612728,
+      "vol": 858255,
+      "buy_vol_ratio": 54.639005889857906,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300121",
+      "price": 14.88,
+      "pct_chg": 5.681818181818187,
+      "vol": 568859,
+      "buy_vol_ratio": 57.65875199302464,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz000555",
+      "price": 18.33,
+      "pct_chg": 3.3258173618940243,
+      "vol": 427730,
+      "buy_vol_ratio": 55.917518060458704,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002463",
+      "price": 84.0,
+      "pct_chg": 3.4737620103473676,
+      "vol": 1258027,
+      "buy_vol_ratio": 51.76113072294951,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz002632",
+      "price": 14.14,
+      "pct_chg": 6.475903614457841,
+      "vol": 585501,
+      "buy_vol_ratio": 60.712791267649415,
+      "is_holding": false
+    },
+    {
+      "stock_code": "sz300308",
+      "price": 561.64,
+      "pct_chg": 3.6197926275783194,
+      "vol": 271336,
+      "buy_vol_ratio": 56.64121237137718,
+      "is_holding": false
+    }
+  ]
+}
