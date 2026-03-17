@@ -211,22 +211,35 @@ def get_top_50pct_volume_constituents(sector_name: str):
                 df = df_sina
                 logging.info(f"  Sina 成份股 [{sector_name}] 共 {len(df)} 只")
         except Exception as e:
-            logging.warning(f"Sina 成份股接口失败 [{sector_name}]: {e}")
+            pass # Sina接口目前在底层可能有解析异常，静默跳过
 
-    # ② 再试 EM 成份股接口
-    try:
-        df_em = ak.stock_board_industry_cons_em(symbol=sector_name)
-        if df_em is not None and not df_em.empty and '代码' in df_em.columns:
-            df = df_em
-    except Exception as e:
-        logging.debug(f"EM 成份股接口失败 [{sector_name}]: {e}")
+    # ② 偶发波动的 EM 成份股接口：增加 3 次 Retry 机制
+    if df is None:
+        import time
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                df_em = ak.stock_board_industry_cons_em(symbol=sector_name)
+                if df_em is not None and not df_em.empty and '代码' in df_em.columns:
+                    df = df_em
+                    break
+            except Exception as e:
+                # 偶发 Connection aborted 或 RemoteDisconnected，重试
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                else:
+                    logging.debug(f"EM 成份股接口失败 (已重试{max_retries}次) [{sector_name}]: {e}")
 
-    # ② EM 失败则试 THS 成份股接口
+    # ③ THS 成份股接口 (原 ak.stock_board_industry_cons_ths 现已失效移除)
+    # 暂时作为 Fallback 占位，如 akshare 恢复该方法则继续生效，否则跳过。
     if df is None:
         try:
-            df_ths = ak.stock_board_industry_cons_ths(symbol=sector_name)
-            if df_ths is not None and not df_ths.empty and '代码' in df_ths.columns:
-                df = df_ths
+            if hasattr(ak, "stock_board_industry_cons_ths"):
+                df_ths = ak.stock_board_industry_cons_ths(symbol=sector_name)
+                if df_ths is not None and not df_ths.empty and '代码' in df_ths.columns:
+                    df = df_ths
+            else:
+                logging.debug(f"当前版本 Akshare 已移除 THS 成份股接口，跳过 [{sector_name}]。")
         except Exception as e:
             logging.error(f"获取板块 {sector_name} 的成份股异常 (EM+THS 均失败): {e}")
 
@@ -300,25 +313,33 @@ def get_market_summary_stats(sina_total_yi: float = 0.0) -> Dict[str, Any]:
         is_monday = datetime.datetime.now().weekday() == 0
         compare_label = "上周五" if is_monday else "昨全天"
         
-        # 昨日/上周五全天数据仍走 EM daily（只取昨日基准，避免 "今天数据是昨天的" 问题）
-        try:
-            sh_hist = ak.stock_zh_index_daily_em(symbol="sh000001")
-            sz_hist = ak.stock_zh_index_daily_em(symbol="sz399001")
-            if sh_hist is not None and not sh_hist.empty and sz_hist is not None and not sz_hist.empty:
-                yest_total_yi = (sh_hist.iloc[-1]['amount'] + sz_hist.iloc[-1]['amount']) / 100000000
-                # 成功获取后更新缓存
-                cache['yesterday_total_yi'] = yest_total_yi
-                cache['yesterday_date'] = today_str
-                _save_volume_cache(cache)
-        except Exception as e:
-            logging.warning(f"EM接口获取昨日数据失败，尝试使用缓存: {e}")
+        # 昨日/上周五全天数据仍走 EM daily（只取昨日基准，过滤掉今天实时滚动的数据）
+        import time
+        for attempt in range(3):
+            try:
+                sh_hist = ak.stock_zh_index_daily_em(symbol="sh000001")
+                sz_hist = ak.stock_zh_index_daily_em(symbol="sz399001")
+                if sh_hist is not None and not sh_hist.empty and sz_hist is not None and not sz_hist.empty:
+                    # 过滤掉日期是今天的行，只保留历史数据（昨天及以前）
+                    sh_hist = sh_hist[sh_hist['date'].astype(str).str.slice(0,10) != today_str]
+                    sz_hist = sz_hist[sz_hist['date'].astype(str).str.slice(0,10) != today_str]
+                    if not sh_hist.empty and not sz_hist.empty:
+                        yest_total_yi = (sh_hist.iloc[-1]['amount'] + sz_hist.iloc[-1]['amount']) / 100000000
+                        # 成功获取后更新缓存
+                        cache['yesterday_total_yi'] = yest_total_yi
+                        cache['yesterday_date'] = today_str
+                        _save_volume_cache(cache)
+                break
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(1)
+                else:
+                    logging.warning(f"EM接口获取昨日数据失败，尝试使用缓存: {e}")
             # 回退：使用缓存的昨日数据
-            if 'yesterday_total_yi' in cache:
+            if yest_total_yi == 0 and 'yesterday_total_yi' in cache:
                 cached_date = cache.get('yesterday_date', '')
-                # 缓存日期不是今天才使用
-                if cached_date and cached_date != today_str:
-                    yest_total_yi = cache['yesterday_total_yi']
-                    logging.info(f"使用缓存的昨日成交额: {yest_total_yi:.0f}亿")
+                yest_total_yi = cache['yesterday_total_yi']
+                logging.info(f"使用缓存的昨日成交额: {yest_total_yi:.0f}亿")
 
         if sina_total_yi > 0:
             # ✅ 使用 Sina 板块实时汇总作为今日成交：比 EM daily 更及时
@@ -406,7 +427,7 @@ def _em_constituent_probe() -> bool:
             pass
     t = threading.Thread(target=_try, daemon=True)
     t.start()
-    t.join(timeout=2.0)
+    t.join(timeout=5.0)
     return result[0]
 
 def main():

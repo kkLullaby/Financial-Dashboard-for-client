@@ -148,18 +148,22 @@ def query_stock_sector(codes_tuple, sectors_tuple):
     for code in codes_tuple:
         if not code:
             continue
-        try:
-            df = ak.stock_individual_info_em(symbol=code)
-            if df is None or df.empty:
-                continue
-            row = df[df['item'] == '行业']
-            if row.empty:
-                continue
-            industry = str(row.iloc[0]['value']).strip()
-            if industry in sectors_set:
-                mapping[code] = industry
-        except Exception:
-            continue
+        import time
+        for attempt in range(3):
+            try:
+                df = ak.stock_individual_info_em(symbol=code)
+                if df is not None and not df.empty:
+                    row = df[df['item'] == '行业']
+                    if not row.empty:
+                        industry = str(row.iloc[0]['value']).strip()
+                        if industry in sectors_set:
+                            mapping[code] = industry
+                break
+            except Exception:
+                if attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    pass
     return mapping
 
 @st.cache_data(ttl=120)
@@ -171,18 +175,22 @@ def build_emergency_sector_map(codes_tuple):
     """
     mapping = {}
     for code in codes_tuple:
-        try:
-            df = ak.stock_individual_info_em(symbol=code)
-            if df is None or df.empty:
-                continue
-            row = df[df['item'] == '行业']
-            if row.empty:
-                continue
-            industry = str(row.iloc[0]['value']).strip()
-            if industry:
-                mapping[code] = industry
-        except Exception:
-            continue
+        import time
+        for attempt in range(3):
+            try:
+                df = ak.stock_individual_info_em(symbol=code)
+                if df is not None and not df.empty:
+                    row = df[df['item'] == '行业']
+                    if not row.empty:
+                        industry = str(row.iloc[0]['value']).strip()
+                        if industry:
+                            mapping[code] = industry
+                break
+            except Exception:
+                if attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    pass
     return mapping
 
 # ==========================================
@@ -534,12 +542,16 @@ with brief_col:
     # 市场量能：实时从 Sina 板块加总计算，30s 缓存
     rt_total = get_realtime_sina_total()
     if rt_total > 0:
-        yest_m = re.search(r"昨全天\s*(\d+)", volume_status)
+        # 兼容"昨全天"（周二~周五）和"上周五"（周一）两种格式
+        yest_m = re.search(r"(?:昨全天|上周五)\s*(\d+)", volume_status)
         if yest_m:
             yest = float(yest_m.group(1))
             diff = rt_total - yest
             vst = "🔥 资金放量" if diff > 0 else "📉 资金缩量"
-            display_volume = f"{vst} (实时 {rt_total:.0f}亿 / 昨全天 {yest:.0f}亿)"
+            # 动态读取对比标签（昨全天 / 上周五）
+            compare_label = re.search(r"(昨全天|上周五)", volume_status)
+            compare_label = compare_label.group(1) if compare_label else "昨全天"
+            display_volume = f"{vst} (实时 {rt_total:.0f}亿 / {compare_label} {yest:.0f}亿)"
         else:
             display_volume = f"📊 实时成交 {rt_total:.0f}亿"
     else:
