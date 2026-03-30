@@ -3,7 +3,7 @@
 # 保持 Streamlit 运行 (被杀后自动重启)
 # ====================================
 
-APP_DIR="/root/.openclaw/workspace/finance_workspace/low_latency_ver"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/streamlit_watchdog.log"
 
 log_msg() {

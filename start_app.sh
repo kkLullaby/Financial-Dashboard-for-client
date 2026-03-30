@@ -3,7 +3,7 @@
 # 启动量化狙击大屏 + Cloudflare Tunnel
 # ====================================
 
-APP_DIR="/root/.openclaw/workspace/finance_workspace/low_latency_ver"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STREAMLOG="/tmp/streamlit_app.log"
 TUNNEL_LOG="/tmp/cloudflared_streamlit.log"
 TUNNEL_NAME="stock-quant-screen"

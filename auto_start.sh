@@ -4,7 +4,7 @@
 # 每天交易时段自动运行
 # ====================================
 
-APP_DIR="/root/.openclaw/workspace/finance_workspace/low_latency_ver"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/auto_start_stock.log"
 
 log_msg() {

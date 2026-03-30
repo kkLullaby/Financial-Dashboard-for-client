@@ -44,66 +44,47 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ==========================================
 @st.cache_data(ttl=86400)
 def load_stock_names():
-    """
-    双层名称映射缓存:
-    - 优先层: radar_stock_names.json (板块专用 ~888只)
-    - 备份层: stock_names.json (全市场 ~5491只)
-    - 兜底层: 返回原始代码
-    """
-    # 第一层: 优先从雷达股缓存加载
-    radar_path = os.path.join(BASE_DIR, "data", "radar_stock_names.json")
+    # 优先从本地缓存加载，避免每次启动都请求API
+    local_path = os.path.join(BASE_DIR, "data", "stock_names.json")
     try:
-        if os.path.exists(radar_path):
-            with open(radar_path, 'r', encoding='utf-8') as f:
-                radar_map = json.load(f)
-                if radar_map:
-                    print(f"📦 加载板块专用名称库: {len(radar_map)} 只")
-    except Exception as e:
-        radar_map = {}
+        if os.path.exists(local_path):
+            with open(local_path, 'r', encoding='utf-8') as f:
+                name_map = json.load(f)
+                if name_map:
+                    return name_map
+    except: pass
     
-    # 第二层: 加载全量备份
-    full_path = os.path.join(BASE_DIR, "data", "stock_names.json")
+    # 回退到 API 获取
     try:
-        if os.path.exists(full_path):
-            with open(full_path, 'r', encoding='utf-8') as f:
-                full_map = json.load(f)
-                if full_map:
-                    print(f"📦 加载全量名称库: {len(full_map)} 只")
-    except Exception as e:
-        full_map = {}
-    
-    # 合并: 优先用雷达股名称，全量作为兜底
-    if radar_map:
-        # 用全量补充雷达库中没有的
-        for code, name in full_map.items():
-            if code not in radar_map:
-                radar_map[code] = name
-        return radar_map
-    elif full_map:
-        return full_map
-    else:
-        return {}
+        df_names = ak.stock_info_a_code_name()
+        def format_code(c):
+            c = str(c).zfill(6)
+            if c.startswith(('60', '68')): return 'sh' + c
+            if c.startswith(('00', '30')): return 'sz' + c
+            if c.startswith(('4', '8', '9')): return 'bj' + c
+            return 'sz' + c
+        df_names['full_code'] = df_names['code'].apply(format_code)
+        return dict(zip(df_names['full_code'], df_names['name']))
+    except: return {}
 
 name_map = load_stock_names()
 
 # 加载 volume_cache 获取 THS 全市场成交额
 VOLUME_CACHE_PATH = os.path.join(os.path.dirname(__file__), "data/volume_cache.json")
 def load_volume_cache():
-    if 'last_volume_cache' not in st.session_state:
-        st.session_state['last_volume_cache'] = {}
     try:
         if os.path.exists(VOLUME_CACHE_PATH):
             with open(VOLUME_CACHE_PATH, 'r') as f:
-                data = json.load(f)
-                st.session_state['last_volume_cache'] = data
-                return data
+                return json.load(f)
     except:
         pass
-    return st.session_state['last_volume_cache']
+    return {}
 
+volume_cache = load_volume_cache()
 
+@st.cache_data(ttl=30)
 def get_realtime_sina_total() -> float:
-    """当日全市场实时成交额（亿元，Sina 板块汇总）"""
+    """当日全市场实时成交额（亿元，Sina 板块汇总），30s 缓存避免频繁请求。"""
     try:
         df = ak.stock_sector_spot()
         if df is not None and not df.empty and '总成交额' in df.columns:
@@ -118,22 +99,14 @@ def get_realtime_sina_total() -> float:
 DATA_PATH = os.path.join(BASE_DIR, "data", "fast_sniper_data.json")
 RADAR_PATH = os.path.join(BASE_DIR, "data", "sector_radar.json")
 
-if 'last_metrics_data' not in st.session_state:
-    st.session_state['last_metrics_data'] = {"valid_targets": [], "macro_indicators": {}}
-if 'last_radar_data' not in st.session_state:
-    st.session_state['last_radar_data'] = {}
-
 try:
     with open(DATA_PATH, 'r', encoding='utf-8') as f:
         data = json.load(f)
-        st.session_state['last_metrics_data'] = data
-except: 
-    data = st.session_state['last_metrics_data']
+except: data = {"valid_targets": [], "macro_indicators": {}}
 
 try:
     with open(RADAR_PATH, 'r', encoding='utf-8') as f:
         radar_data = json.load(f)
-        st.session_state['last_radar_data'] = radar_data
     hot_sectors = radar_data.get("strong_sectors", [])
     candidate_sector_map = radar_data.get("candidate_sector_map", {})
     full_sector_map_raw = radar_data.get("full_sector_map", {})
@@ -141,13 +114,7 @@ try:
     sector_amounts = radar_data.get("sector_amounts", {})  # 板块实时成交额（万元）
     market_summary = radar_data.get("market_summary", {})
 except:
-    radar_data = st.session_state['last_radar_data']
-    hot_sectors = radar_data.get("strong_sectors", [])
-    candidate_sector_map = radar_data.get("candidate_sector_map", {})
-    full_sector_map_raw = radar_data.get("full_sector_map", {})
-    real_market_ratios = radar_data.get("sector_ratios", {})
-    sector_amounts = radar_data.get("sector_amounts", {})
-    market_summary = radar_data.get("market_summary", {})
+    hot_sectors, candidate_sector_map, full_sector_map_raw, real_market_ratios, sector_amounts, market_summary = [], {}, {}, {}, {}, {}
 
 def normalize_stock_code(code):
     pure_code = ''.join(filter(str.isdigit, str(code)))
@@ -182,7 +149,62 @@ for k, v in full_sector_map_raw.items():
 # 把 hot_sectors 转成 set 用于快速校验
 hot_sectors_set = set(hot_sectors)
 
+@st.cache_data(ttl=120)
+def query_stock_sector(codes_tuple, sectors_tuple):
+    """
+    末级兜底（Level-3）：通过 stock_individual_info_em 查询个股行业，
+    仅当返回的行业名恰好在 strong_sectors 里时才采纳，
+    否则丢弃（避免细粒度名称导致下拉联动失效）。
+    """
+    sectors_set = set(sectors_tuple)
+    mapping = {}
+    for code in codes_tuple:
+        if not code:
+            continue
+        import time
+        for attempt in range(3):
+            try:
+                df = ak.stock_individual_info_em(symbol=code)
+                if df is not None and not df.empty:
+                    row = df[df['item'] == '行业']
+                    if not row.empty:
+                        industry = str(row.iloc[0]['value']).strip()
+                        if industry in sectors_set:
+                            mapping[code] = industry
+                break
+            except Exception:
+                if attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    pass
+    return mapping
 
+@st.cache_data(ttl=120)
+def build_emergency_sector_map(codes_tuple):
+    """
+    紧急兜底模式：雷达数据完全不可用（strong_sectors 为空）时调用。
+    逐股查询 stock_individual_info_em 行业分类，构建临时自洽映射。
+    所有名称来自同一 API，下拉与归属展示内部完全一致。
+    """
+    mapping = {}
+    for code in codes_tuple:
+        import time
+        for attempt in range(3):
+            try:
+                df = ak.stock_individual_info_em(symbol=code)
+                if df is not None and not df.empty:
+                    row = df[df['item'] == '行业']
+                    if not row.empty:
+                        industry = str(row.iloc[0]['value']).strip()
+                        if industry:
+                            mapping[code] = industry
+                break
+            except Exception:
+                if attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    pass
+    return mapping
 
 # ==========================================
 # 3. 数据清洗与计算
@@ -192,13 +214,33 @@ macro = data.get("macro_indicators", {})
 
 if not raw_df.empty:
     raw_df['amount_w'] = raw_df['vol'] * raw_df['price'] / 100
-    if 'name' in raw_df.columns:
-        raw_df['证券名称'] = raw_df['name'].fillna(raw_df['stock_code'].map(name_map)).fillna(raw_df['stock_code'])
-    else:
-        raw_df['证券名称'] = raw_df['stock_code'].map(name_map).fillna(raw_df['stock_code'])
+    raw_df['证券名称'] = raw_df['stock_code'].map(name_map).fillna(raw_df['stock_code'])
 
     # sector_map 已在初始化阶段由 full_sector_map 与 candidate_sector_map 合并构建。
-    # 如果仍有活跃股未命中（雷达数据陈旧或个股未通过其它途径分配），则直接分配到“🔥 独立逻辑/其他异动”
+    # 如果仍有活跃股未命中（雷达数据陈旧），则用 L3 兜底查询个股行业，
+    # 但只接受「返回名称在 strong_sectors 里」的结果，杜绝细粒度名称造成联动失效。
+    active_codes = [normalize_stock_code(c) for c in raw_df['stock_code'].tolist()]
+    unresolved = tuple(c for c in active_codes if c and c not in sector_map)
+    if unresolved and hot_sectors:
+        l3_map = query_stock_sector(unresolved, tuple(hot_sectors))
+        sector_map.update(l3_map)
+
+    # ─── 紧急兜底：sector_map 为空时由个股查询行业建立归属映射 ───
+    # 重要：不清空 hot_sectors！THS 板块名单是下拉的权威数据源，必须保持完整 13 个板块。
+    # 如果个股行业在 THS 名单内，L3 已经处理了；如果在外（如化学纤维），就追加到列表末尾。
+    if not sector_map:
+        _all_codes = tuple(
+            c for c in [normalize_stock_code(x) for x in raw_df['stock_code'].tolist()] if c
+        )
+        if _all_codes:
+            _emap = build_emergency_sector_map(_all_codes)
+            sector_map.update({k: v for k, v in _emap.items() if k not in sector_map})
+            # 不清空 hot_sectors：只将尚未收录的行业名追加到列表末尾
+            for _s in _emap.values():
+                if _s and _s not in hot_sectors_set:
+                    hot_sectors.append(_s)
+                    hot_sectors_set.add(_s)
+            # 不覆盖 real_market_ratios：THS summary 的全市场占比才是权威指标
 
     def get_real_sector(row):
         pure_code = normalize_stock_code(row['stock_code'])
@@ -291,12 +333,13 @@ if not curr_df.empty:
     curr_df.insert(0, '#', range(1, len(curr_df) + 1))
 else:
     sector_amount_w = 0
-# 全市场实时成交额：直接读取 volume_cache.json（去除装饰器缓存）
-with open(VOLUME_CACHE_PATH) as _f:
-    _vc = json.load(_f)
-total_market_yi = _vc.get('realtime_total_yi', 0)
-if not total_market_yi and sector_amounts:
+# 全市场实时成交额：优先使用 volume_cache 中的 THS 数据（更准确），其次用 Sina sector_amounts
+total_market_yi = 0
+if volume_cache and volume_cache.get('realtime_total_yi', 0) > 0:
+    total_market_yi = volume_cache.get('realtime_total_yi', 0)
+elif sector_amounts:
     total_market_yi = sum(sector_amounts.values()) / 10000
+# 如果 sector_amounts 尚未更新，尝试从 volume_status 文本提取备用
 if total_market_yi == 0:
     volume_status = market_summary.get("volume_status", "")
     match = re.search(r"(?:最新成交|实时成交)\s*(\d+)", volume_status)
@@ -514,10 +557,8 @@ with brief_col:
     top_vol = market_summary.get("top_vol_sectors", [])
     
     # 市场量能：实时从 Sina 板块加总计算，30s 缓存
-    # 直接读取 volume_cache.json（去除装饰器缓存）
-    with open(VOLUME_CACHE_PATH) as _f2:
-        _vc2 = json.load(_f2)
-    rt_total = _vc2.get('realtime_total_yi', 0)
+    # 使用 volume_cache 中的 THS 数据（全市场成交额更准确）
+    rt_total = volume_cache.get('realtime_total_yi', 0) if volume_cache else 0
     # 备用: 如果 volume_cache 为空则尝试实时获取
     if rt_total == 0:
         rt_total = get_realtime_sina_total()

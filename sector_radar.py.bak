@@ -23,41 +23,15 @@ def _load_volume_cache():
     return {}
 
 def _save_volume_cache(cache_data):
-    """保存成交量缓存 (原子写入)"""
+    """保存成交量缓存"""
     try:
         os.makedirs(os.path.dirname(VOLUME_CACHE_FILE), exist_ok=True)
-        tmp_path = VOLUME_CACHE_FILE + '.tmp'
-        with open(tmp_path, 'w') as f:
+        with open(VOLUME_CACHE_FILE, 'w') as f:
             json_lib.dump(cache_data, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_path, VOLUME_CACHE_FILE)
     except Exception as e:
         logging.warning(f"保存成交量缓存失败: {e}")
 
 from typing import List, Dict, Any
-
-# 股票名称缓存 (最小改动: 加载 stock_names.json)
-STOCK_NAMES_FILE = os.path.join(SCRIPT_DIR, "data/stock_names.json")
-_stock_names_cache: Dict[str, str] = {}
-
-def _load_stock_names_cache():
-    """加载股票代码→名称缓存"""
-    global _stock_names_cache
-    if _stock_names_cache:
-        return _stock_names_cache
-    try:
-        if os.path.exists(STOCK_NAMES_FILE):
-            with open(STOCK_NAMES_FILE, 'r', encoding='utf-8') as f:
-                _stock_names_cache = json_lib.load(f)
-                logging.info(f"📦 股票名称缓存已加载: {len(_stock_names_cache)} 只")
-    except Exception as e:
-        logging.warning(f"股票名称缓存加载失败: {e}")
-    return _stock_names_cache
-
-def _get_stock_name(code: str) -> str:
-    """查询股票名称，失败返回原代码"""
-    return _stock_names_cache.get(code, code)
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -76,30 +50,25 @@ def load_sector_board_df() -> pd.DataFrame:
     _sina_sector_label_map.clear()
 
     # ① 首选 Sina 实时板块（自带 label，可直接查成份股，最快 0.2s）
-    import time
-    for attempt in range(3):
-        try:
-            df_sina = ak.stock_sector_spot()
-            if df_sina is not None and not df_sina.empty \
-                    and '板块' in df_sina.columns and '总成交额' in df_sina.columns \
-                    and 'label' in df_sina.columns:
-                df_sina = df_sina.copy()
-                df_sina['板块名称'] = df_sina['板块'].astype(str).str.strip()
-                # Sina 总成交额单位为"元"，与后续代码一致
-                df_sina['turnover_amount'] = pd.to_numeric(
-                    df_sina['总成交额'], errors='coerce').fillna(0)
-                # 缓存 sector_name → label 映射，供成份股查询
-                for _, row in df_sina.iterrows():
-                    _sina_sector_label_map[row['板块名称']] = str(row['label']).strip()
-                result = df_sina[['板块名称', 'turnover_amount']].reset_index(drop=True)
-                if not result.empty:
-                    logging.info(f"✅ Sina 板块数据加载成功，共 {len(result)} 个板块")
-                    return result
-        except Exception as e:
-            if attempt < 2:
-                time.sleep(0.5)
-            else:
-                logging.warning(f"Sina 板块接口异常: {e}")
+    try:
+        df_sina = ak.stock_sector_spot()
+        if df_sina is not None and not df_sina.empty \
+                and '板块' in df_sina.columns and '总成交额' in df_sina.columns \
+                and 'label' in df_sina.columns:
+            df_sina = df_sina.copy()
+            df_sina['板块名称'] = df_sina['板块'].astype(str).str.strip()
+            # Sina 总成交额单位为"元"，与后续代码一致
+            df_sina['turnover_amount'] = pd.to_numeric(
+                df_sina['总成交额'], errors='coerce').fillna(0)
+            # 缓存 sector_name → label 映射，供成份股查询
+            for _, row in df_sina.iterrows():
+                _sina_sector_label_map[row['板块名称']] = str(row['label']).strip()
+            result = df_sina[['板块名称', 'turnover_amount']].reset_index(drop=True)
+            if not result.empty:
+                logging.info(f"✅ Sina 板块数据加载成功，共 {len(result)} 个板块")
+                return result
+    except Exception as e:
+        logging.warning(f"Sina 板块接口异常: {e}")
 
     # ② THS 板块摘要接口：实时成交额，90 个板块，接口稳定
     try:
@@ -183,7 +152,7 @@ def read_my_stocks(filepath: str) -> List[str]:
     return result
 
 # 🚀 核心重构 1：动态截取霸占大盘 50% 成交额的板块
-def get_top_50pct_volume_sectors(ths_total: float = 0.0) -> List[str]:
+def get_top_50pct_volume_sectors() -> List[str]:
     try:
         logging.info("正在计算全市场板块资金流动性分布...")
         df = load_sector_board_df()
@@ -194,18 +163,8 @@ def get_top_50pct_volume_sectors(ths_total: float = 0.0) -> List[str]:
         # 按成交额从大到小排序
         df = df.sort_values(by='turnover_amount', ascending=False)
         
-        # === 使用传入的 THS 值，或尝试获取 ===
-        if ths_total <= 0:
-            ths_total = get_ths_total_market()
-        if ths_total > 0:
-            # 使用 THS 全市场成交额作为分母（更准确，覆盖100%市场）
-            total_market_vol = ths_total * 1e8  # 亿元转元
-            logging.info(f"使用 THS 全市场成交额: {ths_total:.2f}亿")
-        else:
-            # 降级: 使用 Sina 板块合计
-            total_market_vol = df['turnover_amount'].sum()
-            logging.warning("THS 数据不可用，降级使用 Sina 板块合计")
-
+        # 计算市场总成交额
+        total_market_vol = df['turnover_amount'].sum()
         if total_market_vol <= 0:
             logging.warning("市场总成交额为 0，无法计算前 50% 板块")
             return []
@@ -356,21 +315,6 @@ def get_ths_total_market() -> float:
     return 0.0
 
 
-
-def calculate_last_trading_day() -> str:
-    """计算上一个交易日（考虑周末）"""
-    now = datetime.datetime.now()
-    weekday = now.weekday()
-    if weekday == 0:  # 周一
-        delta = 3  # 回退到上周五
-    elif weekday == 6:  # 周日
-        delta = 2  # 回退到上周五
-    elif weekday == 7:  # 周六
-        delta = 1  # 回退到上周五
-    else:
-        delta = 1
-    return (now - datetime.timedelta(days=delta)).strftime('%Y-%m-%d')
-
 def get_market_summary_stats(sina_total_yi: float = 0.0) -> Dict[str, Any]:
     """sina_total_yi: 由 get_market_sector_ratios() 计算的 Sina 实时全市场成交额（亿元）。"""
     stats = {
@@ -386,21 +330,9 @@ def get_market_summary_stats(sina_total_yi: float = 0.0) -> Dict[str, Any]:
         cache = _load_volume_cache()
         today_str = datetime.datetime.now().strftime("%Y-%m-%d")
         
-        # === 修复1: 数据翻转机制 ===
-        # 检测是否需要将昨日 realtime 升级为今日 yesterday
-        cached_realtime_date = cache.get('realtime_date', '')
-        if cached_realtime_date and cached_realtime_date != today_str:
-            # 隔天首次运行：将 realtime 翻转为 yesterday
-            prev_realtime = cache.get('realtime_total_yi', 0)
-            if prev_realtime > 0:
-                cache['yesterday_total_yi'] = prev_realtime
-                cache['yesterday_date'] = cached_realtime_date
-                logging.info(f"翻转机制: realtime({prev_realtime:.0f}亿 @ {cached_realtime_date}) → yesterday")
-                _save_volume_cache(cache)
-        
         # 判断今天是否是周一（weekday=0）
         is_monday = datetime.datetime.now().weekday() == 0
-        compare_label = "上周五" if is_monday else "昨全天"
+        compare_label = "昨全天"
         
         # 昨日/上周五全天数据仍走 EM daily（只取昨日基准，过滤掉今天实时滚动的数据）
         import time
@@ -432,19 +364,11 @@ def get_market_summary_stats(sina_total_yi: float = 0.0) -> Dict[str, Any]:
                     time.sleep(1)
                 else:
                     logging.warning(f"EM接口获取昨日数据失败，尝试使用缓存: {e}")
-            # 回退1：直接使用缓存的昨日数据（缓存中存储的就是上一个完整交易日）
+            # 回退：直接使用缓存的昨日数据（缓存中存储的就是上一个完整交易日）
             if yest_total_yi == 0 and 'yesterday_total_yi' in cache:
                 yest_total_yi = cache['yesterday_total_yi']
                 cached_date = cache.get('yesterday_date', '')
                 logging.info(f"使用缓存的上交易日成交额: {yest_total_yi:.0f}亿 (缓存日期: {cached_date})")
-            # 回退2：使用前一天的 realtime_total_yi 作为昨日全天（更可靠）
-            elif yest_total_yi == 0 and 'realtime_total_yi' in cache:
-                prev_realtime = cache.get('realtime_total_yi', 0)
-                if prev_realtime > 0:
-                    yest_total_yi = prev_realtime
-                    # 用 realtime_date 作为 yesterday_date（上次运行的日期）
-                    cache['yesterday_date'] = cache.get('realtime_date', calculate_last_trading_day())
-                    logging.info(f"使用昨日实时数据作为昨日全天: {yest_total_yi:.0f}亿")
 
         if sina_total_yi > 0:
             # ✅ 使用 Sina 板块实时汇总作为今日成交：比 EM daily 更及时
@@ -476,33 +400,27 @@ def get_market_summary_stats(sina_total_yi: float = 0.0) -> Dict[str, Any]:
         logging.error(f"市场量能计算异常: {e}")
 
     # 隔水舱 2：获取涨停阵地
-    today_str = datetime.datetime.now().strftime("%Y%m%d")
-    import time
-    for attempt in range(3):
-        try:
-            df_zt = ak.stock_zt_pool_em(date=today_str)
-            if not df_zt.empty and '所属行业' in df_zt.columns:
-                zt_counts = df_zt['所属行业'].value_counts().head(5)
-                stats["top_zt_sectors"] = [[str(k), int(v)] for k, v in zt_counts.items()]
+    try:
+        today_str = datetime.datetime.now().strftime("%Y%m%d")
+        df_zt = ak.stock_zt_pool_em(date=today_str)
+        if not df_zt.empty and '所属行业' in df_zt.columns:
+            zt_counts = df_zt['所属行业'].value_counts().head(5)
+            stats["top_zt_sectors"] = [[str(k), int(v)] for k, v in zt_counts.items()]
 
-                # 记录每个情绪主线板块下的涨停股票明细，供前端展开查看
-                if '代码' in df_zt.columns and '名称' in df_zt.columns:
-                    for sector, _ in stats["top_zt_sectors"]:
-                        sector_df = df_zt[df_zt['所属行业'] == sector]
-                        details = []
-                        for _, row in sector_df.iterrows():
-                            code = str(row.get('代码', '')).zfill(6)
-                            name = str(row.get('名称', ''))
-                            if code and name:
-                                details.append({"code": code, "name": name})
-                        # 防止消息体过大，限制每个板块最多展示前 30 只
-                        stats["top_zt_sector_details"][sector] = details[:30]
-            break
-        except Exception:
-            if attempt < 2:
-                time.sleep(1)
-            else:
-                logging.warning("当前无涨停数据 (可能未开盘或接口休眠)")
+            # 记录每个情绪主线板块下的涨停股票明细，供前端展开查看
+            if '代码' in df_zt.columns and '名称' in df_zt.columns:
+                for sector, _ in stats["top_zt_sectors"]:
+                    sector_df = df_zt[df_zt['所属行业'] == sector]
+                    details = []
+                    for _, row in sector_df.iterrows():
+                        code = str(row.get('代码', '')).zfill(6)
+                        name = str(row.get('名称', ''))
+                        if code and name:
+                            details.append({"code": code, "name": name})
+                    # 防止消息体过大，限制每个板块最多展示前 30 只
+                    stats["top_zt_sector_details"][sector] = details[:30]
+    except Exception:
+        logging.warning("当前无涨停数据 (可能未开盘或接口休眠)")
 
     # 隔水舱 3：获取吸金阵地
     try:
@@ -547,9 +465,6 @@ def main():
     my_stocks_path = os.path.join(data_dir, "my_stocks.txt")
     output_json_path = os.path.join(data_dir, "sector_radar.json")
     os.makedirs(data_dir, exist_ok=True)
-
-    # 加载股票名称缓存
-    _load_stock_names_cache()
     
     radar_data: Dict[str, Any] = {
         "strong_sectors": [], "candidate_stocks": [], "my_stocks": [],
@@ -575,7 +490,7 @@ def main():
     radar_data["market_summary"] = get_market_summary_stats(sina_total_yi=ths_total)
     
     # 🔥 触发前 50% 核心流动性板块拦截
-    core_50pct_sectors = get_top_50pct_volume_sectors(ths_total=ths_total)
+    core_50pct_sectors = get_top_50pct_volume_sectors()
     radar_data["strong_sectors"] = core_50pct_sectors
     
     all_candidates_set = set()
@@ -602,7 +517,6 @@ def main():
                         continue
                     fmt_code = format_stock_code(code)
                     radar_data["full_sector_map"].setdefault(fmt_code, zt_sector)
-                    all_candidates_set.add(fmt_code)  # 将涨停股加入候选池
         else:
             # 非 Sina 模式：先用探针检测 EM 成份股接口是否可用
             em_cons_alive = _em_constituent_probe()
@@ -616,7 +530,6 @@ def main():
                             continue
                         fmt_code = format_stock_code(code)
                         radar_data["full_sector_map"].setdefault(fmt_code, zt_sector)
-                        all_candidates_set.add(fmt_code)  # 将涨停股加入候选池
                 if radar_data["full_sector_map"]:
                     logging.info(f"已从涨停板数据补充 {len(radar_data['full_sector_map'])} 只股票的板块归属")
             else:
@@ -629,13 +542,7 @@ def main():
                     for code in all_codes:
                         radar_data["full_sector_map"].setdefault(code, sector)
 
-    
-    # candidate_stocks 改为包含代码和名称的对象列表 (使用缓存)
-    stock_list = []
-    for code in sorted(all_candidates_set):
-        name = _get_stock_name(code)
-        stock_list.append({"code": code, "name": name})
-    radar_data["candidate_stocks"] = stock_list
+    radar_data["candidate_stocks"] = sorted(list(all_candidates_set))
     radar_data["my_stocks"] = read_my_stocks(my_stocks_path)
 
     # ⚠️ 失败保护：如果本次因网络波动未能获取任何核心板块，
@@ -646,25 +553,16 @@ def main():
                 old_data = json.load(f)
             old_data["market_summary"] = radar_data["market_summary"]
             old_data["my_stocks"] = radar_data["my_stocks"]
-            
-            tmp_path = output_json_path + '.tmp'
-            with open(tmp_path, 'w', encoding='utf-8') as f:
+            with open(output_json_path, 'w', encoding='utf-8') as f:
                 json.dump(old_data, f, ensure_ascii=False, indent=4)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp_path, output_json_path)
             logging.warning("⚠️ 核心板块获取失败，已保留上次数据并仅更新市场摘要。")
         except Exception as e:
             logging.error(f"保留旧数据失败: {e}")
         return
 
     try:
-        tmp_path = output_json_path + '.tmp'
-        with open(tmp_path, 'w', encoding='utf-8') as f:
+        with open(output_json_path, 'w', encoding='utf-8') as f:
             json.dump(radar_data, f, ensure_ascii=False, indent=4)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_path, output_json_path)
         logging.info(f"✅ 雷达扫描完毕！捕捉核心池股票 {len(all_candidates_set)} 只，已写入: {output_json_path}")
     except Exception as e:
         logging.error(f"写入失败: {e}")

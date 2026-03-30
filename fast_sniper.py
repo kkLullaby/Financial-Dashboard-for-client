@@ -4,16 +4,8 @@ import time
 import requests
 import pandas as pd
 from pytdx.hq import TdxHq_API
-import os
-import time
-
-# while True:
-#     print("正在抓取最新盘口切片...")
-#     # 调用你的快照脚本
-#     os.system("python3 fast_sniper.py")
-    
-#     # 休息 3 秒，避免被新浪或通达信服务器封 IP
-#     time.sleep(15)
+import threading
+import signal
 
 # ==========================================
 # 1. 动态路径配置 (彻底解决本地与云端路径切换问题)
@@ -32,6 +24,9 @@ TDX_SERVERS = [
     {'name': '上证云北京联通一', 'ip': '123.125.108.14', 'port': 7709},
     {'name': '上海电信主站Z1', 'ip': '180.153.18.170', 'port': 7709},
 ]
+
+# 新浪行情接口超时设置
+SINA_TIMEOUT = 3
 
 def format_tdx_code(code: str):
     """将标准代码转为 PyTDX 市场格式，并带有防弹清洗逻辑"""
@@ -56,6 +51,111 @@ def format_tdx_code(code: str):
     # 兜底给深市
     return (0, pure_code)
 
+def format_sina_code(code: str):
+    """将标准代码转为新浪格式 (sh600000, sz000001)"""
+    code = code.lower().strip()
+    pure_code = ''.join(filter(str.isdigit, code))
+    if len(pure_code) != 6:
+        return None
+    if pure_code.startswith(('60', '68', '5')):
+        return f"sh{pure_code}"
+    else:
+        return f"sz{pure_code}"
+
+def get_sina_quotes(codes):
+    """通过新浪接口批量获取行情 (备用方案)"""
+    if not codes:
+        return []
+    
+    # 标准化codes
+    sina_codes = []
+    for c in codes:
+        sc = format_sina_code(c)
+        if sc:
+            sina_codes.append(sc)
+    
+    if not sina_codes:
+        return []
+    
+    results = []
+    
+    # 分批请求，每批30只
+    batch_size = 30
+    headers = {
+        'Referer': 'https://finance.sina.com.cn',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+    
+    for i in range(0, len(sina_codes), batch_size):
+        batch = sina_codes[i:i + batch_size]
+        url = f"https://hq.sinajs.cn/list={','.join(batch)}"
+        
+        try:
+            resp = requests.get(url, headers=headers, timeout=SINA_TIMEOUT)
+            resp.encoding = 'gbk'
+            
+            lines = resp.text.strip().split('\n')
+            for line in lines:
+                if '="' not in line:
+                    continue
+                left, right = line.split('="')
+                stock_code = left.split('_')[-1]
+                data_str = right.strip('";')
+                data_parts = data_str.split(',')
+                
+                if len(data_parts) < 10:
+                    continue
+                
+                try:
+                    name = data_parts[0]
+                    prev_close = float(data_parts[2]) if data_parts[2] and data_parts[2] != '-' else 0
+                    price = float(data_parts[3]) if data_parts[3] and data_parts[3] != '-' else 0
+                    vol = float(data_parts[8]) if len(data_parts) > 8 and data_parts[8] else 0
+                    
+                    # 计算涨跌幅
+                    pct_chg = 0
+                    if prev_close > 0:
+                        pct_chg = (price - prev_close) / prev_close * 100
+                    
+                    # 市场ID
+                    market = 1 if stock_code.startswith('sh') else 0
+                    pure_code = stock_code[2:]
+                    
+                    results.append({
+                        'code': pure_code,
+                        'name': name,
+                        'market': market,
+                        'price': price,
+                        'last_close': prev_close,
+                        'vol': vol,
+                        'b_vol': 0  # Sina不提供主动买入量
+                    })
+                except:
+                    continue
+        except:
+            continue
+    
+    return results
+
+def get_quote_with_timeout(api, stock_list, timeout_sec=2):
+    """带超时的行情获取 (防止特定股票导致挂起)"""
+    result = {'data': None, 'error': None}
+    
+    def _get():
+        try:
+            result['data'] = api.get_security_quotes(stock_list)
+        except Exception as e:
+            result['error'] = str(e)
+    
+    t = threading.Thread(target=_get)
+    t.daemon = True
+    t.start()
+    t.join(timeout_sec)
+    
+    if t.is_alive():
+        return None  # 超时返回None
+    return result['data']
+
 def get_macro_data():
     """通过新浪底层接口极速获取宏观先行指标 (自动计算并拼接涨跌幅)"""
     print("正在拉取全球宏观先行指标...")
@@ -69,12 +169,13 @@ def get_macro_data():
     }
     
     macro_result = {}
-    try:
-        response = requests.get(url, headers=headers, timeout=2)
-        response.raise_for_status()
-        lines = response.text.strip().split('\n')
-        
-        for line in lines:
+    for attempt in range(3):
+        try:
+            response = requests.get(url, headers=headers, timeout=2)
+            response.raise_for_status()
+            lines = response.text.strip().split('\n')
+            
+            for line in lines:
             if not line or '=' not in line: continue
             name_part, data_part = line.split('=')
             code = name_part.split('_')[-1]
@@ -87,7 +188,7 @@ def get_macro_data():
                 # 1. 离岸人民币 (Sina 外汇格式: [1]是最新, [3]是昨收)
                 if code == 'susdcnh':
                     price = float(data_fields[1])
-                    pre_close = float(data_fields[3])
+                    pre_close = float(data_fields[5])  # FIX: [3] is bid price, use [5] (high price) as approximation
                     key = 'USD/CNH'
                     
                 # 2. 外盘期货 (Sina 国际期货格式: [0]是最新, [7]是昨收)
@@ -128,10 +229,12 @@ def get_macro_data():
                 
         elapsed = (time.time() - start_time) * 1000
         print(f"✅ 宏观指标获取完成，耗时: {elapsed:.2f} ms")
-    except Exception as e:
-        print(f"⚠️ 宏观数据获取失败 (可能是网络波动): {e}")
-        
-    return macro_result
+            break
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(0.5)
+            else:
+                print(f"⚠️ 宏观数据获取失败 (可能是网络波动): {e}")
 
 def main():
     start_time = time.time()
@@ -148,7 +251,10 @@ def main():
         hot_pool = {"candidate_stocks": [], "my_stocks": [], "news": "No news."}
         
     # 安全提取数据，防止 key 不存在
-    candidates = hot_pool.get('candidate_stocks', [])
+    candidates = hot_pool.get("candidate_stocks", [])
+    # 兼容新格式({"code": xxx, "name": xxx})和旧格式("xxx")
+    if candidates and isinstance(candidates[0], dict):
+        candidates = [c.get("code", "") for c in candidates if c.get("code")]
     my_stocks = hot_pool.get('my_stocks', [])
     news = hot_pool.get('news', '')
 
@@ -175,10 +281,12 @@ def main():
         return
         
     query_list = [format_tdx_code(c) for c in all_codes]
+    query_list = [q for q in query_list if q is not None]
     
     # --- 步骤 2: PyTDX 闪电直连与容错轮询 ---
     api = TdxHq_API(auto_retry=True)
     connected = False
+    tdx_works = False
     
     for server in TDX_SERVERS:
         print(f"尝试连接 {server['name']} ({server['ip']})...", end="")
@@ -194,21 +302,35 @@ def main():
         print("🚨 所有行情服务器均连接失败，请检查网络或关闭代理！")
         return
         
-    # --- 步骤 3: 批量快照请求 (分块拉取，突破 80 只限制) ---
+    # --- 步骤 3: 批量快照请求 (带超时保护) ---
     quotes = []
     try:
-        # 每次最多请求 80 只股票 (PyTDX 底层硬性限制)
         chunk_size = 80
         for i in range(0, len(query_list), chunk_size):
             chunk = query_list[i:i + chunk_size]
-            q = api.get_security_quotes(chunk)
+            
+            # 使用带超时的获取 (每只股票最多等待2秒)
+            q = get_quote_with_timeout(api, chunk, timeout_sec=2)
+            
             if q:
                 quotes.extend(q)
+            else:
+                # TDX超时，标记失败，稍后用Sina备用
+                print(f"  批次 {i//chunk_size + 1} TDX超时，切换至Sina备用...")
+                tdx_works = False
+                break
     finally:
-        api.disconnect() # 确保连接被释放
-        
+        api.disconnect()
+    
+    # 如果TDX完全失败，使用Sina备用
     if not quotes:
-        print("⚠️ 未获取到行情数据，可能是请求被服务器拒绝。")
+        print("⚠️ TDX行情获取失败，启用新浪备用接口...")
+        quotes = get_sina_quotes(all_codes)
+        if quotes:
+            print(f"✅ Sina备用接口获取成功，共 {len(quotes)} 条")
+    
+    if not quotes:
+        print("⚠️ 未获取到任何行情数据。")
         return
         
     # --- 步骤 4: Pandas 内存极速过滤 ---
@@ -225,31 +347,39 @@ def main():
     df['stock_code'] = df.apply(restore_code, axis=1)
     df['is_holding'] = df['stock_code'].isin(my_stocks)
     
-    # 计算主动买盘占比
+    # 计算主动买盘占比 (Sina数据b_vol=0，使用默认50)
     df['buy_vol_ratio'] = df.apply(
-        lambda row: (row['b_vol'] / row['vol'] * 100) if row['vol'] > 0 else 0, 
+        lambda row: (row['b_vol'] / row['vol'] * 100) if row['vol'] > 0 and row.get('b_vol', 0) > 0 else 50.0, 
         axis=1
     )
     
     # 硬逻辑过滤
     mask_holding = df['is_holding'] == True
-    # 候选股额外要求：实时涨跌幅 > 3%（排除假强 / 路았 股）
-    mask_filtered = (df['is_holding'] == False) & (df['vol'] > 0) & (df['buy_vol_ratio'] > 50.0) & (df['pct_chg'] > 3.0)
+    # 候选股额外要求：实时涨跌幅 > 3%（排除假强股），买盘比 >= 50.0 (修复新浪备用数据被团灭的BUG)
+    mask_filtered = (df['is_holding'] == False) & (df['vol'] > 0) & (df['buy_vol_ratio'] >= 50.0) & (df['pct_chg'] > 3.0)
     
     df_final = df[mask_holding | mask_filtered]
     
     # --- 步骤 5: 数据组装与落盘 ---
+    export_cols = ['stock_code', 'price', 'pct_chg', 'vol', 'buy_vol_ratio', 'is_holding']
+    if 'name' in df_final.columns:
+        export_cols.append('name')
+        
     result = {
         "timestamp": time.time(),
-        "macro_indicators": macro_data,  # 🚀 这里注入了刚刚抓取的宏观指标
+        "macro_indicators": macro_data,
         "news_catalyst": news,
-        "valid_targets": df_final[['stock_code', 'price', 'pct_chg', 'vol', 'buy_vol_ratio', 'is_holding']].to_dict(orient='records')
+        "valid_targets": df_final[export_cols].to_dict(orient='records')
     }
     
-    # 数据落盘
+    # 数据落盘 (原子写入)
     try:
-        with open(MARKET_DATA_PATH, 'w', encoding='utf-8') as f:
+        tmp_path = MARKET_DATA_PATH + '.tmp'
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, MARKET_DATA_PATH)
         print(f"📁 狙击手数据已写入: {MARKET_DATA_PATH}")
     except Exception as e:
         print(f"写入失败: {e}")

@@ -3,7 +3,7 @@
 # 开盘期间每8秒运行fast_sniper.py
 # ====================================
 
-SCRIPT_DIR="/root/.openclaw/workspace/finance_workspace/low_latency_ver"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/fast_sniper_loop.log"
 PID_FILE="/tmp/fast_sniper_loop.pid"
 
@@ -47,6 +47,10 @@ log_msg "🚀 启动快速狙击监控 (每8秒)"
 
 # 主循环
 while true; do
+    # 控制日志文件大小在5MB以内（约50000行）
+    if [ $(wc -l < "$LOG_FILE" 2>/dev/null || echo 0) -gt 50000 ]; then
+        tail -n 10000 "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
+    fi
     if is_trading_time; then
         cd "$SCRIPT_DIR"
         python3 fast_sniper.py >> "$LOG_FILE" 2>&1
