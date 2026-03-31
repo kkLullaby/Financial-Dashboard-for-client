@@ -26,8 +26,8 @@ sleep 2
 
 # 2. 启动 Streamlit
 echo -e "${YELLOW}[2/4]${NC} 启动 Streamlit 应用..."
-cd ${APP_DIR}
-nohup streamlit run app.py --server.port 8501 --server.address 0.0.0.0 > ${STREAMLOG} 2>&1 &
+cd "${APP_DIR}"
+nohup streamlit run app.py --server.port 8501 --server.address 0.0.0.0 > "${STREAMLOG}" 2>&1 &
 STREAM_PID=$!
 sleep 5
 
@@ -40,7 +40,7 @@ fi
 
 # 3. 启动 Cloudflare Tunnel
 echo -e "${YELLOW}[3/4]${NC} 启动 Cloudflare Tunnel..."
-nohup cloudflared tunnel --url http://localhost:8501 --loglevel info > ${TUNNEL_LOG} 2>&1 &
+nohup cloudflared tunnel --url http://localhost:8501 --loglevel info > "${TUNNEL_LOG}" 2>&1 &
 TUNNEL_PID=$!
 sleep 8
 
@@ -64,4 +64,4 @@ echo ""
 echo "======================================"
 
 # 保存 URL
-echo "${TUNNEL_URL}" > ${APP_DIR}/tunnel_url.txt
+echo "${TUNNEL_URL}" > "${APP_DIR}/tunnel_url.txt"echo "${TUNNEL_URL}" > "${APP_DIR}/tunnel_url.txt"

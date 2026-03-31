@@ -20,7 +20,7 @@ fi
 log_msg "🚀 启动量化看板服务..."
 
 # 启动 Streamlit
-cd ${APP_DIR}
+cd "${APP_DIR}"
 nohup streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --browser.gatherUsageStats false > /tmp/streamlit_app.log 2>&1 &
 STREAM_PID=$!
 sleep 5

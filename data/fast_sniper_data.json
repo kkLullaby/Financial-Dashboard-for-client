@@ -1,29 +1,895 @@
 {
-  "timestamp": 1774854303.2711768,
+  "timestamp": 1774916566.293276,
   "macro_indicators": {
-    "USD/CNH": "6.9134 (↓ -0.08%)",
-    "Global_GC": "4554.539 (↑ +0.67%)",
-    "Global_CL": "102.255 (↑ +2.62%)",
-    "CN_Bond_T0": "108.365 (↑ +0.07%)",
-    "CN_Bond_TL0": "111.570 (↑ +0.21%)"
+    "USD/CNH": "6.9193 (↑ +0.06%)",
+    "Global_GC": "4514.784 (↓ -0.94%)",
+    "Global_CL": "106.280 (↑ +3.30%)",
+    "CN_Bond_T0": "108.390 (↑ +0.10%)",
+    "CN_Bond_TL0": "111.600 (↑ +0.23%)"
   },
   "news_catalyst": "",
   "valid_targets": [
     {
+      "stock_code": "sh600489",
+      "price": 26.75,
+      "pct_chg": 4.737666405638218,
+      "vol": 910747.56,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中金黄金"
+    },
+    {
+      "stock_code": "sh605222",
+      "price": 22.36,
+      "pct_chg": 9.985243482538127,
+      "vol": 218772.91,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "起帆电缆"
+    },
+    {
+      "stock_code": "sh603017",
+      "price": 15.76,
+      "pct_chg": 9.979064898813677,
+      "vol": 314357.05,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中衡设计"
+    },
+    {
+      "stock_code": "sz300342",
+      "price": 53.86,
+      "pct_chg": 7.719999999999999,
+      "vol": 627131.75,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "天银机电"
+    },
+    {
+      "stock_code": "sh601600",
+      "price": 11.97,
+      "pct_chg": 4.632867132867143,
+      "vol": 6400715.88,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中国铝业"
+    },
+    {
+      "stock_code": "sz002160",
+      "price": 5.49,
+      "pct_chg": 10.020040080160319,
+      "vol": 199731.0,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "常铝股份"
+    },
+    {
+      "stock_code": "sz001280",
+      "price": 82.3,
+      "pct_chg": 4.032360005056248,
+      "vol": 156595.27,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中国铀业"
+    },
+    {
+      "stock_code": "sh600389",
+      "price": 29.44,
+      "pct_chg": 3.6619718309859253,
+      "vol": 125750.95,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "江山股份"
+    },
+    {
+      "stock_code": "sz000830",
+      "price": 16.9,
+      "pct_chg": 4.385423100679415,
+      "vol": 550491.92,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "鲁西化工"
+    },
+    {
+      "stock_code": "sh600110",
+      "price": 9.1,
+      "pct_chg": 5.080831408775976,
+      "vol": 3302321.19,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "诺德股份"
+    },
+    {
+      "stock_code": "sh603538",
+      "price": 43.1,
+      "pct_chg": 10.005104645227162,
+      "vol": 89063.21,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "美诺华"
+    },
+    {
+      "stock_code": "sh603606",
+      "price": 61.1,
+      "pct_chg": 5.800865800865803,
+      "vol": 221747.72,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "东方电缆"
+    },
+    {
+      "stock_code": "sz000338",
+      "price": 24.43,
+      "pct_chg": 3.9574468085106367,
+      "vol": 1756952.96,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "潍柴动力"
+    },
+    {
+      "stock_code": "sz002281",
+      "price": 88.1,
+      "pct_chg": 4.260355029585792,
+      "vol": 607038.23,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "光迅科技"
+    },
+    {
+      "stock_code": "sz002675",
+      "price": 14.48,
+      "pct_chg": 10.030395136778116,
+      "vol": 143371.0,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "东诚药业"
+    },
+    {
+      "stock_code": "sz000786",
+      "price": 26.02,
+      "pct_chg": 4.330392943063345,
+      "vol": 186256.93,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "北新建材"
+    },
+    {
+      "stock_code": "sh603897",
+      "price": 32.89,
+      "pct_chg": 10.000000000000007,
+      "vol": 134021.52,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "长城科技"
+    },
+    {
+      "stock_code": "sh600867",
+      "price": 9.54,
+      "pct_chg": 7.191011235955043,
+      "vol": 1169359.28,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "通化东宝"
+    },
+    {
+      "stock_code": "sz002001",
+      "price": 36.0,
+      "pct_chg": 4.499274310595057,
+      "vol": 603716.65,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "新 和 成"
+    },
+    {
+      "stock_code": "sz000506",
+      "price": 17.18,
+      "pct_chg": 4.564820450395618,
+      "vol": 430715.58,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "招金黄金"
+    },
+    {
+      "stock_code": "sh600547",
+      "price": 40.69,
+      "pct_chg": 5.469155002592015,
+      "vol": 736026.44,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "山东黄金"
+    },
+    {
+      "stock_code": "sz002470",
+      "price": 3.22,
+      "pct_chg": 4.2071197411003345,
+      "vol": 6739090.9,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "金正大"
+    },
+    {
+      "stock_code": "sh601869",
+      "price": 301.69,
+      "pct_chg": 10.001458470064904,
+      "vol": 149172.78,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "长飞光纤"
+    },
+    {
+      "stock_code": "sz000155",
+      "price": 17.15,
+      "pct_chg": 6.126237623762367,
+      "vol": 1919047.47,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "川能动力"
+    },
+    {
+      "stock_code": "sh600699",
+      "price": 25.52,
+      "pct_chg": 4.761904761904763,
+      "vol": 538671.3,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "均胜电子"
+    },
+    {
+      "stock_code": "sz002309",
+      "price": 4.76,
+      "pct_chg": 9.930715935334867,
+      "vol": 8751012.85,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中利集团"
+    },
+    {
+      "stock_code": "sh688802",
+      "price": 627.01,
+      "pct_chg": 4.826629217240112,
+      "vol": 26032.52,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "沐曦股份"
+    },
+    {
+      "stock_code": "sz300143",
+      "price": 13.17,
+      "pct_chg": 5.107741420590588,
+      "vol": 404119.78,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "盈康生命"
+    },
+    {
+      "stock_code": "sh603698",
+      "price": 30.84,
+      "pct_chg": 3.0404276645506187,
+      "vol": 172469.56,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "航天工程"
+    },
+    {
+      "stock_code": "sz300137",
+      "price": 13.25,
+      "pct_chg": 4.660347551342811,
+      "vol": 395347.22,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "先河环保"
+    },
+    {
+      "stock_code": "sz002149",
+      "price": 53.15,
+      "pct_chg": 7.482305358948424,
+      "vol": 1073034.09,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "西部材料"
+    },
+    {
       "stock_code": "sz300285",
       "price": 30.64,
       "pct_chg": -0.22793878215565055,
-      "vol": 21886357.0,
+      "vol": 218863.57,
       "buy_vol_ratio": 50.0,
-      "is_holding": true
+      "is_holding": true,
+      "name": "国瓷材料"
+    },
+    {
+      "stock_code": "sz000998",
+      "price": 10.28,
+      "pct_chg": 3.524672708962736,
+      "vol": 623484.13,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "隆平高科"
+    },
+    {
+      "stock_code": "sz002980",
+      "price": 43.78,
+      "pct_chg": 10.00000000000001,
+      "vol": 78855.0,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "华盛昌"
+    },
+    {
+      "stock_code": "sz300300",
+      "price": 14.2,
+      "pct_chg": 11.723052714398099,
+      "vol": 1846476.54,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "海峡创新"
+    },
+    {
+      "stock_code": "sh603061",
+      "price": 284.67,
+      "pct_chg": 10.000386413694498,
+      "vol": 24360.98,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "金海通"
+    },
+    {
+      "stock_code": "sh600522",
+      "price": 28.99,
+      "pct_chg": 7.171903881700546,
+      "vol": 1649417.2,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中天科技"
+    },
+    {
+      "stock_code": "sz002491",
+      "price": 11.65,
+      "pct_chg": 3.8324420677361823,
+      "vol": 2051582.06,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "通鼎互联"
+    },
+    {
+      "stock_code": "sh600230",
+      "price": 19.09,
+      "pct_chg": 4.545454545454536,
+      "vol": 275844.42,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "沧州大化"
+    },
+    {
+      "stock_code": "sz002222",
+      "price": 71.94,
+      "pct_chg": 9.999999999999986,
+      "vol": 411743.88,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "福晶科技"
+    },
+    {
+      "stock_code": "sh600513",
+      "price": 28.17,
+      "pct_chg": 9.996095275283102,
+      "vol": 322463.18,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "联环药业"
+    },
+    {
+      "stock_code": "sz300204",
+      "price": 28.77,
+      "pct_chg": 3.638328530259358,
+      "vol": 868126.22,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "舒泰神"
+    },
+    {
+      "stock_code": "sh601000",
+      "price": 4.58,
+      "pct_chg": 7.259953161592518,
+      "vol": 1012763.21,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "唐山港"
+    },
+    {
+      "stock_code": "sh601388",
+      "price": 3.94,
+      "pct_chg": 10.055865921787706,
+      "vol": 1485605.96,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "怡球资源"
+    },
+    {
+      "stock_code": "sz000070",
+      "price": 16.18,
+      "pct_chg": 3.188775510204082,
+      "vol": 1017114.05,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "特发信息"
+    },
+    {
+      "stock_code": "sz002176",
+      "price": 10.71,
+      "pct_chg": 4.0816326530612415,
+      "vol": 2631061.3,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "江特电机"
+    },
+    {
+      "stock_code": "sh600486",
+      "price": 77.0,
+      "pct_chg": 3.997839005942725,
+      "vol": 86805.34,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "扬农化工"
+    },
+    {
+      "stock_code": "sz000807",
+      "price": 31.46,
+      "pct_chg": 9.502262443438916,
+      "vol": 1154592.01,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "云铝股份"
+    },
+    {
+      "stock_code": "sz002192",
+      "price": 81.98,
+      "pct_chg": 5.1025641025641075,
+      "vol": 630410.01,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "融捷股份"
+    },
+    {
+      "stock_code": "sz000048",
+      "price": 22.61,
+      "pct_chg": 10.024330900243303,
+      "vol": 391152.24,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "京基智农"
+    },
+    {
+      "stock_code": "sh603016",
+      "price": 45.02,
+      "pct_chg": 9.99267041290008,
+      "vol": 71720.32,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "新宏泰"
+    },
+    {
+      "stock_code": "sz002409",
+      "price": 86.18,
+      "pct_chg": 3.5692825381564877,
+      "vol": 119309.6,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "雅克科技"
+    },
+    {
+      "stock_code": "sh600602",
+      "price": 23.33,
+      "pct_chg": 9.995285242809983,
+      "vol": 1113167.01,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "云赛智联"
+    },
+    {
+      "stock_code": "sz002155",
+      "price": 30.4,
+      "pct_chg": 3.9316239316239265,
+      "vol": 880937.5,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "湖南黄金"
+    },
+    {
+      "stock_code": "sz300209",
+      "price": 10.92,
+      "pct_chg": 6.953966699314389,
+      "vol": 1095322.46,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "行云科技"
+    },
+    {
+      "stock_code": "sh600845",
+      "price": 23.81,
+      "pct_chg": 7.7375565610859605,
+      "vol": 519537.9,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "宝信软件"
+    },
+    {
+      "stock_code": "sz200152",
+      "price": 2.73,
+      "pct_chg": 10.080645161290324,
+      "vol": 25298.53,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "山航B退"
+    },
+    {
+      "stock_code": "sz002413",
+      "price": 13.4,
+      "pct_chg": 5.263157894736841,
+      "vol": 1859545.98,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "雷科防务"
+    },
+    {
+      "stock_code": "sh600345",
+      "price": 43.23,
+      "pct_chg": 10.0,
+      "vol": 191921.0,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "长江通信"
+    },
+    {
+      "stock_code": "sz000933",
+      "price": 31.8,
+      "pct_chg": 4.193971166448234,
+      "vol": 1014279.15,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "神火股份"
+    },
+    {
+      "stock_code": "sh600219",
+      "price": 6.49,
+      "pct_chg": 9.999999999999996,
+      "vol": 5686250.19,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "南山铝业"
+    },
+    {
+      "stock_code": "sz300016",
+      "price": 10.22,
+      "pct_chg": 3.9674465920651123,
+      "vol": 480658.55,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "北陆药业"
+    },
+    {
+      "stock_code": "sh600498",
+      "price": 48.8,
+      "pct_chg": 6.133101348412354,
+      "vol": 1076643.35,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "烽火通信"
+    },
+    {
+      "stock_code": "sz002361",
+      "price": 15.0,
+      "pct_chg": 9.970674486803514,
+      "vol": 2300031.27,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "神剑股份"
+    },
+    {
+      "stock_code": "sz002501",
+      "price": 2.04,
+      "pct_chg": 10.270270270270267,
+      "vol": 1331275.98,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "利源股份"
+    },
+    {
+      "stock_code": "sz002437",
+      "price": 3.49,
+      "pct_chg": 3.5608308605341277,
+      "vol": 1478221.26,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "誉衡药业"
+    },
+    {
+      "stock_code": "sh600487",
+      "price": 53.85,
+      "pct_chg": 10.010214504596524,
+      "vol": 1351086.99,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "亨通光电"
+    },
+    {
+      "stock_code": "sz002246",
+      "price": 26.64,
+      "pct_chg": 4.4705882352941195,
+      "vol": 474682.25,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "北化股份"
+    },
+    {
+      "stock_code": "sz300142",
+      "price": 12.53,
+      "pct_chg": 3.897180762852395,
+      "vol": 569249.91,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "沃森生物"
+    },
+    {
+      "stock_code": "sz002532",
+      "price": 17.73,
+      "pct_chg": 9.987593052109176,
+      "vol": 251935.11,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "天山铝业"
+    },
+    {
+      "stock_code": "sz002471",
+      "price": 9.18,
+      "pct_chg": 3.1460674157303297,
+      "vol": 2756161.74,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中超控股"
+    },
+    {
+      "stock_code": "sz001400",
+      "price": 164.1,
+      "pct_chg": 10.001340662287161,
+      "vol": 25784.59,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "江顺科技"
+    },
+    {
+      "stock_code": "sh600313",
+      "price": 8.51,
+      "pct_chg": 4.802955665024638,
+      "vol": 1397600.63,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "农发种业"
+    },
+    {
+      "stock_code": "sh600970",
+      "price": 10.35,
+      "pct_chg": 3.2934131736526955,
+      "vol": 348932.41,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中材国际"
+    },
+    {
+      "stock_code": "sh600488",
+      "price": 4.76,
+      "pct_chg": 9.930715935334867,
+      "vol": 699067.03,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "津药药业"
+    },
+    {
+      "stock_code": "sz300385",
+      "price": 19.82,
+      "pct_chg": 19.975786924939474,
+      "vol": 660939.41,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "雪浪环境"
+    },
+    {
+      "stock_code": "sz002038",
+      "price": 7.27,
+      "pct_chg": 9.98487140695914,
+      "vol": 1616880.63,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "双鹭药业"
+    },
+    {
+      "stock_code": "sz002578",
+      "price": 4.26,
+      "pct_chg": 10.077519379844952,
+      "vol": 191816.0,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "闽发铝业"
+    },
+    {
+      "stock_code": "sz002709",
+      "price": 48.17,
+      "pct_chg": 4.467577531988728,
+      "vol": 1527573.55,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "天赐材料"
+    },
+    {
+      "stock_code": "sh600528",
+      "price": 8.34,
+      "pct_chg": 7.474226804123712,
+      "vol": 672345.81,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中铁工业"
+    },
+    {
+      "stock_code": "sz002371",
+      "price": 468.84,
+      "pct_chg": 3.5012583337012577,
+      "vol": 80806.25,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "北方华创"
+    },
+    {
+      "stock_code": "sz002025",
+      "price": 66.48,
+      "pct_chg": 3.9887376818395186,
+      "vol": 330329.99,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "航天电器"
+    },
+    {
+      "stock_code": "sz002342",
+      "price": 13.09,
+      "pct_chg": 5.820533548908656,
+      "vol": 1834971.98,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "巨力索具"
+    },
+    {
+      "stock_code": "sh603618",
+      "price": 26.71,
+      "pct_chg": 10.008237232289948,
+      "vol": 599663.85,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "杭电股份"
+    },
+    {
+      "stock_code": "sz002370",
+      "price": 7.18,
+      "pct_chg": 9.95405819295558,
+      "vol": 781042.48,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "亚太药业"
+    },
+    {
+      "stock_code": "sh688693",
+      "price": 54.9,
+      "pct_chg": 19.999999999999996,
+      "vol": 72317.7,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "锴威特"
     },
     {
       "stock_code": "sz003031",
       "price": 79.07,
       "pct_chg": 1.501925545571229,
-      "vol": 8718960.0,
+      "vol": 87189.6,
       "buy_vol_ratio": 50.0,
-      "is_holding": true
+      "is_holding": true,
+      "name": "中瓷电子"
+    },
+    {
+      "stock_code": "sh600598",
+      "price": 17.48,
+      "pct_chg": 8.369497830130202,
+      "vol": 1030342.74,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "北大荒"
+    },
+    {
+      "stock_code": "sz000592",
+      "price": 11.62,
+      "pct_chg": 10.037878787878775,
+      "vol": 4306314.42,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "平潭发展"
+    },
+    {
+      "stock_code": "sz000547",
+      "price": 28.68,
+      "pct_chg": 4.824561403508773,
+      "vol": 2357897.47,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "航天发展"
+    },
+    {
+      "stock_code": "sh600105",
+      "price": 27.69,
+      "pct_chg": 8.375733855185912,
+      "vol": 1687135.47,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "永鼎股份"
+    },
+    {
+      "stock_code": "sh603023",
+      "price": 5.33,
+      "pct_chg": 7.676767676767675,
+      "vol": 430351.62,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "威帝股份"
+    },
+    {
+      "stock_code": "sh600844",
+      "price": 5.2,
+      "pct_chg": 4.208416833667334,
+      "vol": 2811361.47,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "金煤科技"
+    },
+    {
+      "stock_code": "sz000797",
+      "price": 2.97,
+      "pct_chg": 3.12500000000001,
+      "vol": 548274.56,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "中国武夷"
+    },
+    {
+      "stock_code": "sh600410",
+      "price": 25.59,
+      "pct_chg": 3.1854838709677384,
+      "vol": 1525824.69,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "华胜天成"
+    },
+    {
+      "stock_code": "sh600216",
+      "price": 16.6,
+      "pct_chg": 4.402515723270447,
+      "vol": 571285.04,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "浙江医药"
+    },
+    {
+      "stock_code": "sz300189",
+      "price": 7.47,
+      "pct_chg": 3.7499999999999942,
+      "vol": 1659155.9,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "神农种业"
+    },
+    {
+      "stock_code": "sz000505",
+      "price": 7.16,
+      "pct_chg": 3.4682080924855523,
+      "vol": 277777.11,
+      "buy_vol_ratio": 50.0,
+      "is_holding": false,
+      "name": "京粮控股"
     }
   ]
 }

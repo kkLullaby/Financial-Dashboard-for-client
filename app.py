@@ -15,12 +15,12 @@ def _render_scrollable_chart(chart, chart_width: int, height: int = 415):
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 * {{box-sizing:border-box;margin:0;padding:0;}}
 body {{background:transparent;overflow:hidden;}}
-#sw {{width:100%;overflow-x:auto;overflow-y:hidden;}}
+#sw {{width:100%;overflow-x:auto;overflow-y:hidden;text-align:center;}}
 #sw::-webkit-scrollbar {{height:10px;}}
 #sw::-webkit-scrollbar-track {{background:#e8e8e8;border-radius:5px;}}
 #sw::-webkit-scrollbar-thumb {{background:#aaaaaa;border-radius:5px;}}
 #sw::-webkit-scrollbar-thumb:hover {{background:#777;}}
-#vis {{width:{chart_width}px;}}
+#vis {{display:inline-block; margin:0 auto; text-align:left;}}
 .vega-embed summary {{display:none;}}
 </style></head><body>
 <div id="sw"><div id="vis"></div></div>
@@ -412,7 +412,7 @@ with chart_col:
             view_df = chart_df.copy()
 
         view_order = view_df['label'].tolist()
-        chart_width = max(200, len(view_df) * bar_w * slots_per_bar)
+        chart_width = max(80, len(view_df) * bar_w * slots_per_bar)
 
         axis_cfg = alt.Axis(
             labelAngle=-45,
@@ -434,7 +434,7 @@ with chart_col:
                 x=alt.X('label:N', sort=view_order, axis=axis_cfg),
                 y=alt.Y('amount_yi:Q', title='成交额 (亿元)'),
                 tooltip=common_tt
-            ).properties(width=chart_width, height=340)
+            ).properties(width=alt.Step(bar_w * slots_per_bar), height=340)
             _render_scrollable_chart(chart, chart_width)
 
             # 单板块单柱：补充板块总计文字
@@ -490,7 +490,7 @@ with chart_col:
                                 legend=alt.Legend(orient='top-right', title=None)),
                 xOffset=alt.XOffset('类型:N'),
                 tooltip=tt_double
-            ).properties(width=chart_width, height=340)
+            ).properties(width=alt.Step(bar_w * slots_per_bar), height=340)
             _render_scrollable_chart(chart, chart_width)
             if sector_total_w > 0:
                 all_shown_total = curr_df['amount_w'].sum()
@@ -544,15 +544,13 @@ with brief_col:
         st.caption("[情绪阵地：涨停家数]")
         if top_zt:
             for sector, count in top_zt:
-                exp_title = f"{sector} | {count}家"
-                with st.expander(exp_title, expanded=False):
-                    details = top_zt_details.get(sector, [])
-                    if details:
-                        detail_df = pd.DataFrame(details)
-                        detail_df.rename(columns={"name": "股票名称", "code": "股票代码"}, inplace=True)
-                        st.dataframe(detail_df, use_container_width=True, hide_index=True)
-                    else:
-                        st.caption("该板块明细暂不可用")
+                details = top_zt_details.get(sector, [])
+                if details:
+                    names = [d.get("name", d.get("code")) for d in details[:5]]
+                    names_str = "、".join(names) + ("..." if len(details)>5 else "")
+                    st.markdown(f"**{sector}** `{count}家` \n<span style='font-size:0.8em;color:gray;'>{names_str}</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"**{sector}** `{count}家`")
         else:
             st.text("暂无数据/休市中")
             

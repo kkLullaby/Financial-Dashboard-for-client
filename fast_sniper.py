@@ -110,7 +110,7 @@ def get_sina_quotes(codes):
                     name = data_parts[0]
                     prev_close = float(data_parts[2]) if data_parts[2] and data_parts[2] != '-' else 0
                     price = float(data_parts[3]) if data_parts[3] and data_parts[3] != '-' else 0
-                    vol = float(data_parts[8]) if len(data_parts) > 8 and data_parts[8] else 0
+                    vol = float(data_parts[8]) / 100 if len(data_parts) > 8 and data_parts[8] else 0
                     
                     # 计算涨跌幅
                     pct_chg = 0
@@ -157,15 +157,12 @@ def get_quote_with_timeout(api, stock_list, timeout_sec=2):
     return result['data']
 
 def get_macro_data():
-    """通过新浪底层接口极速获取宏观先行指标 (自动计算并拼接涨跌幅)"""
-    print("正在拉取全球宏观先行指标...")
     start_time = time.time()
-    
-    url = "https://hq.sinajs.cn/list=fx_susdcnh,hf_GC,hf_CL,nf_T0,nf_TL0"
-    
+    codes = "fx_susdcnh,hf_GC,hf_CL,nf_T0,nf_TL0"
+    url = f"https://hq.sinajs.cn/list={codes}"
     headers = {
         'Referer': 'https://finance.sina.com.cn',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0'
     }
     
     macro_result = {}
@@ -173,68 +170,52 @@ def get_macro_data():
         try:
             response = requests.get(url, headers=headers, timeout=2)
             response.raise_for_status()
-            lines = response.text.strip().split('\n')
+            str_lines = response.text.strip().split('\n')
             
-            for line in lines:
-            if not line or '=' not in line: continue
-            name_part, data_part = line.split('=')
-            code = name_part.split('_')[-1]
-            data_fields = data_part.strip('";').split(',')
-            
-            try:
-                price = 0.0
-                pre_close = 0.0
-                
-                # 1. 离岸人民币 (Sina 外汇格式: [1]是最新, [3]是昨收)
-                if code == 'susdcnh':
-                    price = float(data_fields[1])
-                    pre_close = float(data_fields[5])  # FIX: [3] is bid price, use [5] (high price) as approximation
-                    key = 'USD/CNH'
-                    
-                # 2. 外盘期货 (Sina 国际期货格式: [0]是最新, [7]是昨收)
-                elif code in ['GC', 'CL']:
-                    price = float(data_fields[0])
-                    pre_close = float(data_fields[7])
-                    key = f'Global_{code}'
-                    
-                # 3. 内盘期货 (Sina 国内期货格式: [3]是最新, [0]是昨收)
-                # 字段实测: [0]=昨收, [1]=开盘, [2]=最低, [3]=最新, [4]=成交量, [5]=成交额(万元), [6]=持仓量
-                elif code in ['T0', 'TL0']:
-                    latest_price = float(data_fields[3]) if len(data_fields) > 3 else 0.0
-                    pre_close = float(data_fields[0]) if len(data_fields) > 0 else 0.0
-                    price = latest_price if latest_price > 0 else pre_close
-                    key = f'CN_Bond_{code}'
-                else:
-                    continue
-                    
-                # 🎯 核心计算逻辑：算出涨跌幅
-                if pre_close > 0:
-                    pct_chg = (price - pre_close) / pre_close * 100
-                else:
-                    pct_chg = 0.0
-                    
-                # 拼接方向箭头与百分比符号
-                sign = "↑" if pct_chg > 0 else ("↓" if pct_chg < 0 else "-")
-                
-                # 格式化输出 (汇率保留4位小数，其他保留3位小数)
-                if 'susdcnh' in code:
-                    formatted_str = f"{price:.4f} ({sign} {pct_chg:+.2f}%)"
-                else:
-                    formatted_str = f"{price:.3f} ({sign} {pct_chg:+.2f}%)"
-                    
-                macro_result[key] = formatted_str
-                
-            except Exception as e:
-                print(f"解析 {code} 时出错跳过: {e}")
-                
-        elapsed = (time.time() - start_time) * 1000
-        print(f"✅ 宏观指标获取完成，耗时: {elapsed:.2f} ms")
+            for line in str_lines:
+                if not line or '=' not in line: continue
+                name_part, data_part = line.split('=')
+                code = name_part.split('_')[-1]
+                data_fields = data_part.strip('";').split(',')
+                try:
+                    price = 0.0
+                    pre_close = 0.0
+                    if code == 'susdcnh':
+                        price = float(data_fields[1])
+                        pre_close = float(data_fields[5])
+                        key = 'USD/CNH'
+                    elif code in ['GC', 'CL']:
+                        price = float(data_fields[0])
+                        pre_close = float(data_fields[7])
+                        key = f'Global_{code}'
+                    elif code in ['T0', 'TL0']:
+                        latest_price = float(data_fields[3]) if len(data_fields) > 3 else 0.0
+                        pre_close = float(data_fields[0]) if len(data_fields) > 0 else 0.0
+                        price = latest_price if latest_price > 0 else pre_close
+                        key = f'CN_Bond_{code}'
+                    else:
+                        continue
+                    if pre_close > 0:
+                        pct_chg = (price - pre_close) / pre_close * 100
+                    else:
+                        pct_chg = 0.0
+                    sign = "↑" if pct_chg > 0 else ("↓" if pct_chg < 0 else "-")
+                    if 'susdcnh' in code:
+                        formatted_str = f"{price:.4f} ({sign} {pct_chg:+.2f}%)"
+                    else:
+                        formatted_str = f"{price:.3f} ({sign} {pct_chg:+.2f}%)"
+                    macro_result[key] = formatted_str
+                except Exception as e:
+                    pass
+            elapsed = (time.time() - start_time) * 1000
+            print(f"✅ 宏观指标获取完成，耗时: {elapsed:.2f} ms")
             break
         except Exception as e:
             if attempt < 2:
                 time.sleep(0.5)
             else:
-                print(f"⚠️ 宏观数据获取失败 (可能是网络波动): {e}")
+                pass
+    return macro_result
 
 def main():
     start_time = time.time()
